@@ -53,7 +53,7 @@ from .clinvar import ClinVarDataset
 from .cosmic import COSMICDataset
 from .covid19_cxr import COVID19CXRDataset
 from .dreamt import DREAMTDataset
-from .lifesnaps import LifeSnapsDataset
+from .lifesnaps import LifeSnapsDataset as LifeSnapsDataset
 from .ehrshot import EHRShotDataset
 from .eicu import eICUDataset
 from .isruc import ISRUCDataset
