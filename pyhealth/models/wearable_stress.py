@@ -57,10 +57,9 @@ class WearableStressModel(BaseModel):
     ``stage='probe'`` freezes the representation, including BatchNorm statistics.
     ``stage='finetune'`` trains a binary classifier after pretraining.
 
-    The soft-target forward formula is informed by the reference code, but
-    targets are detached here. This stop-gradient adaptation is not gradient-
-    equivalent to the reference's differentiable targets or the paper's
-    one-hot objective. The example reports this distinction explicitly.
+    By default, soft targets remain differentiable as in the reference code.
+    Detached soft targets and one-hot paired targets are explicit ablations.
+    Matching the objective does not establish equivalence of the full pipeline.
 
     Args:
         dataset: SampleDataset with ``sensors``, ``context``, and ``stress``.
@@ -71,6 +70,8 @@ class WearableStressModel(BaseModel):
         temperature: contrastive logit scale denominator.
         dropout: Transformer and projection dropout probability.
         transformer_layers: Number of channel-attention layers.
+        contrastive_target: ``reference`` keeps soft-target gradients;
+            ``stop_gradient`` detaches them; ``one_hot`` uses paired indices.
 
     Examples:
         >>> import torch
@@ -95,6 +96,7 @@ class WearableStressModel(BaseModel):
         temperature: float = 0.07,
         dropout: float = 0.1,
         transformer_layers: int = 3,
+        contrastive_target: str = "reference",
     ) -> None:
         super().__init__(dataset)
         if stage not in {"supervised", "pretrain", "probe", "finetune"}:
@@ -109,12 +111,15 @@ class WearableStressModel(BaseModel):
             raise ValueError("Hours must be divisible by 4; temperature > 0")
         if not 0 <= dropout < 1 or transformer_layers < 1:
             raise ValueError("dropout must be in [0, 1); transformer_layers >= 1")
+        if contrastive_target not in {"reference", "stop_gradient", "one_hot"}:
+            raise ValueError("Unknown contrastive_target")
 
         self.stage = stage
         self.channels = channels
         self.hours = hours
         self.context_dim = context_dim
         self.temperature = temperature
+        self.contrastive_target = contrastive_target
         self.model_config = {
             "channels": channels,
             "hours": hours,
@@ -122,6 +127,7 @@ class WearableStressModel(BaseModel):
             "temperature": temperature,
             "dropout": dropout,
             "transformer_layers": transformer_layers,
+            "contrastive_target": contrastive_target,
         }
         layer = nn.TransformerEncoderLayer(
             d_model=hours,
@@ -222,7 +228,10 @@ class WearableStressModel(BaseModel):
         payload: dict[str, Any] = torch.load(
             path, map_location="cpu", weights_only=True
         )
-        model = cls(dataset, stage=payload["stage"], **payload["config"])
+        config = dict(payload["config"])
+        # Older checkpoints predate this option and used detached soft targets.
+        config.setdefault("contrastive_target", "stop_gradient")
+        model = cls(dataset, stage=payload["stage"], **config)
         model.load_state_dict(payload["state_dict"])
         return model
 
@@ -291,13 +300,20 @@ class WearableStressModel(BaseModel):
                 raise ValueError("text_emb must have shape (batch, 768)")
             text = self.text_projection(text_emb)
             logits = text @ embedding.T / self.temperature
-            with torch.no_grad():
+            if self.contrastive_target == "one_hot":
+                targets = torch.arange(len(embedding), device=embedding.device)
+                reverse_targets = targets
+            else:
                 targets = F.softmax(
                     (embedding @ embedding.T + text @ text.T) * self.temperature / 2,
                     dim=-1,
                 )
+                if self.contrastive_target == "stop_gradient":
+                    targets = targets.detach()
+                reverse_targets = targets.T
             loss = (
-                F.cross_entropy(logits, targets) + F.cross_entropy(logits.T, targets.T)
+                F.cross_entropy(logits, targets)
+                + F.cross_entropy(logits.T, reverse_targets)
             ) / 2
             return {"loss": loss, "embed": embedding}
 

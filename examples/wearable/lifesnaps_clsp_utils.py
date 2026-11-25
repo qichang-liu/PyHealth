@@ -115,6 +115,8 @@ def encode_text(
     model_name: str = "bert-base-uncased",
     batch_size: int = 32,
     local_files_only: bool = True,
+    encoder_kind: str = "pretrained",
+    random_seed: int = 20261125,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Encode with frozen BERT; cache keyed by text, model and tokenizer limit.
 
@@ -123,13 +125,24 @@ def encode_text(
     last-layer token vectors, including special tokens, with max_length=512.
     """
     from huggingface_hub import try_to_load_from_cache
-    from transformers import AutoModel, AutoTokenizer
+    from transformers import AutoConfig, AutoModel, AutoTokenizer
+
+    if encoder_kind not in {"pretrained", "random"}:
+        raise ValueError("encoder_kind must be pretrained or random")
 
     cache_dir.mkdir(parents=True, exist_ok=True)
     tokenizer = AutoTokenizer.from_pretrained(
         model_name, local_files_only=local_files_only
     )
-    model = AutoModel.from_pretrained(model_name, local_files_only=local_files_only)
+    if encoder_kind == "pretrained":
+        model = AutoModel.from_pretrained(model_name, local_files_only=local_files_only)
+    else:
+        config = AutoConfig.from_pretrained(
+            model_name, local_files_only=local_files_only
+        )
+        with torch.random.fork_rng(devices=[]):
+            torch.manual_seed(random_seed)
+            model = AutoModel.from_config(config)
     revision = getattr(model.config, "_commit_hash", None)
     if revision is None:
         cached_config = try_to_load_from_cache(model_name, "config.json")
@@ -142,12 +155,15 @@ def encode_text(
         "max_length": 512,
         "pooling": "masked-mean-with-special-tokens-v1",
     }
+    if encoder_kind == "random":
+        identity.update(encoder_kind=encoder_kind, random_seed=random_seed)
     key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     path = cache_dir / f"bert-{key}.npz"
     if path.exists():
         stored = np.load(path, allow_pickle=False)
         metadata = json.loads(str(stored["metadata"]))
         metadata["cache_hit"] = True
+        metadata["encoder_kind"] = encoder_kind
         return stored["embeddings"], metadata
     model = model.to(device).eval()
     for parameter in model.parameters():
@@ -182,9 +198,53 @@ def encode_text(
         "truncated_texts": truncated,
         "cache_key": key,
         "cache_hit": False,
+        "encoder_kind": encoder_kind,
+        "random_seed": random_seed if encoder_kind == "random" else None,
     }
     np.savez_compressed(path, embeddings=embeddings, metadata=json.dumps(metadata))
     return embeddings, metadata
+
+
+def statistical_features(sensors: np.ndarray, context: np.ndarray) -> np.ndarray:
+    """Return the prompt's eleven statistics per channel plus numeric context.
+
+    No targets or participant identifiers are accepted. The downstream example
+    fits scaling on its training pretraining subset and feeds these columns to
+    the same trainable projection, with zero padding to its 768-D input.
+    """
+    sensors = np.asarray(sensors, dtype="float64")
+    context = np.asarray(context, dtype="float64")
+    if sensors.ndim != 3 or context.ndim != 2 or len(sensors) != len(context):
+        raise ValueError("Expected aligned sensor and context batches")
+    mean = sensors.mean(axis=2)
+    std = sensors.std(axis=2)
+    z = np.divide(
+        sensors - mean[..., None],
+        std[..., None],
+        out=np.zeros_like(sensors),
+        where=std[..., None] > 0,
+    )
+    q25, median, q75 = np.percentile(sensors, [25, 50, 75], axis=2)
+    stats = np.stack(
+        [
+            mean,
+            std,
+            sensors.min(axis=2),
+            sensors.max(axis=2),
+            q25,
+            median,
+            q75,
+            np.sqrt(np.mean(sensors**2, axis=2)),
+            np.where(std > 0, np.mean(z**4, axis=2) - 3, 0),
+            np.mean(z**3, axis=2),
+            q75 - q25,
+        ],
+        axis=-1,
+    ).reshape(len(sensors), -1)
+    features = np.concatenate([stats, context], axis=1)
+    if not np.isfinite(features).all():
+        raise ValueError("Statistical features must be finite")
+    return features
 
 
 def split_participants(ids: np.ndarray, seed: int) -> dict[str, np.ndarray]:

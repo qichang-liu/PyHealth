@@ -24,8 +24,9 @@ The declared default training budget is smaller than the paper's budget;
 passing 300/150/150 and supervised 300 reproduces its epoch counts, not its
 split/feature implementation. The model uses one binary logit and the task's
 category encoding; numerical equivalence to the reference is not claimed.
-Soft contrastive targets are detached, unlike the reference code; this is
-a stop-gradient adaptation, not an exact gradient-level reproduction.
+The default reference objective differentiates through its soft targets.
+Use --contrastive-target stop_gradient for the earlier detached adaptation,
+or one_hot to isolate paired one-hot targets with all other settings fixed.
 Outputs include metrics.json, preprocessing.json, split.json and model
 checkpoints. Findings belong in the accompanying result Markdown after an
 actual run. No clinical conclusion should be drawn from synthetic scores.
@@ -46,6 +47,7 @@ from lifesnaps_clsp_utils import (
     calendar_context,
     encode_text,
     split_participants,
+    statistical_features,
 )
 from lifesnaps_stressdetection_mlp import make_synthetic_root
 from sklearn.metrics import roc_auc_score
@@ -214,6 +216,22 @@ def run(args: argparse.Namespace, root: str) -> dict[str, Any]:
             .astype("float32")
         )
         text_meta = {"kind": "synthetic random vectors; software smoke only"}
+    elif args.text_encoder == "statistics":
+        features = statistical_features(raw_ts[pretrain_rows], raw_tab[pretrain_rows])
+        mean, scale = features.mean(0), features.std(0)
+        scale[scale == 0] = 1
+        scaled = ((features - mean) / scale).astype("float32")
+        embeddings = np.pad(scaled, ((0, 0), (0, 768 - scaled.shape[1])))
+        text_meta = {
+            "encoder_kind": "statistics",
+            "n_texts": len(features),
+            "feature_dim": features.shape[1],
+            "projection": "trainable existing Linear(768,128); unused inputs zero",
+            "scaling": "mean/std fitted only on selected training pretraining days",
+        }
+        (args.output / "statistical_preprocessing.json").write_text(
+            json.dumps({"mean": mean.tolist(), "scale": scale.tolist()})
+        )
     else:
         texts = [
             build_text(raw_ts[row], str(records[row]["context_text"]))
@@ -226,6 +244,8 @@ def run(args: argparse.Namespace, root: str) -> dict[str, Any]:
             args.text_model,
             args.text_batch_size,
             local_files_only=not args.allow_download,
+            encoder_kind=args.text_encoder,
+            random_seed=args.random_encoder_seed,
         )
     text_seconds = time.perf_counter() - text_started
     tr = supervised_rows["train"]
@@ -257,11 +277,20 @@ def run(args: argparse.Namespace, root: str) -> dict[str, Any]:
         },
         "models": {},
         "pretraining_days": len(pretrain_rows),
+        "evaluation": {
+            "patient_ids": ids[te].tolist(),
+            "dates": dates[te].tolist(),
+            "labels": y[te].tolist(),
+        },
     }
     fallback = np.median(raw_tab[train_rows], axis=0)
     for name in ["supervised", "clsp"]:
         set_seed(args.seed)
-        model = WearableStressModel(model_dataset, dropout=args.dropout).to(device)
+        model = WearableStressModel(
+            model_dataset,
+            dropout=args.dropout,
+            contrastive_target=args.contrastive_target,
+        ).to(device)
         training_started = time.perf_counter()
         history = {}
         if name == "supervised":
@@ -360,6 +389,12 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--text-cache", type=Path)
     parser.add_argument("--text-model", default="bert-base-uncased")
+    parser.add_argument(
+        "--text-encoder",
+        choices=["pretrained", "random", "statistics"],
+        default="pretrained",
+    )
+    parser.add_argument("--random-encoder-seed", type=int, default=20261125)
     parser.add_argument("--allow-download", action="store_true")
     parser.add_argument("--text-batch-size", type=int, default=32)
     parser.add_argument(
@@ -375,6 +410,12 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument(
+        "--contrastive-target",
+        choices=["reference", "stop_gradient", "one_hot"],
+        default="reference",
+        help="Reference differentiable soft targets, legacy detached targets, or paired indices",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
         "--device", choices=["auto", "cpu", "mps", "cuda"], default="auto"

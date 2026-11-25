@@ -14,7 +14,9 @@ Training stages
 
 * ``supervised``: optimize a binary classifier from scratch.
 * ``pretrain``: consume external 768-dimensional ``text_emb`` vectors and
-  optimize a stop-gradient soft-target symmetric contrastive objective.
+  optimize differentiable soft-target symmetric contrastive loss by default.
+  ``contrastive_target="stop_gradient"`` recovers the previous detached
+  objective, and ``"one_hot"`` uses paired-index targets for ablation.
   This stage returns ``loss`` and ``embed``; it needs a dedicated pretraining
   loop rather than a classification-metrics Trainer call.
 * ``probe``: update the classification head only. The representation's
@@ -57,7 +59,15 @@ not scientific evidence about BERT. For real data use ``--root`` and an
 explicit output directory. Calibrate with one epoch per stage before a larger
 run; ``--max-pretrain-days`` permits a seeded training-only subset when compute
 is limited. Exact commands, settings and measured results are documented in
-``examples/wearable/lifesnaps_clsp_results.md`` after validation.
+``examples/wearable/lifesnaps_proposal_findings.md``. The historical
+``lifesnaps_clsp_results.md`` retains the original stop-gradient pilot.
+
+``--text-encoder random`` uses a randomly initialized frozen BERT with the
+same configuration and tokenizer; ``statistics`` projects the underlying
+sensor statistics and context directly, without BERT. The companion
+``lifesnaps_stressdetection_analysis.py`` reproduces paired participant-cluster
+bootstrap intervals and within-/between-participant AUC from matched local
+run outputs. Aggregate CSVs exclude participant IDs and per-day predictions.
 
 Differences from the publication
 -------------------------------
@@ -68,12 +78,18 @@ The model has one binary logit; the task uses deterministic category codes;
 example quantile transforms include context coordinates; prompts put context
 first and report 512-token truncation. These choices are documented adaptation
 differences, not a claim of numerical identity with the author's implementation.
-The soft-target forward formula is informed by the reference code, but this
-implementation detaches target probabilities. The reference allows gradients
-through those targets, while the paper states a one-hot objective. These are
-distinct optimization objectives; this example is an explicit stop-gradient
-adaptation and does not establish equivalence. A high or low AUC alone does not validate the claimed
-pretraining mechanism or establish medical utility.
+The default ``contrastive_target="reference"`` retains gradients through soft
+targets, matching that aspect of the reference implementation. The previous
+stop-gradient objective is now an explicit ablation, not the default. The paper
+states a one-hot objective; this is also available as an explicit target mode.
+These modes are compared with the remaining pipeline fixed. This does not
+establish equivalence of architecture, preprocessing, or the paper's protocol.
+Checkpoints record the target mode; older checkpoints lacking this field retain
+their original stop-gradient behavior when loaded. Historical pilot results in
+``lifesnaps_clsp_results.md`` used stop-gradient. See
+``lifesnaps_objective_ablation.md`` for the separate target-mode comparison.
+A high or low AUC alone does not validate the pretraining mechanism or establish
+medical utility.
 
 .. autoclass:: pyhealth.models.WearableStressModel
     :members:

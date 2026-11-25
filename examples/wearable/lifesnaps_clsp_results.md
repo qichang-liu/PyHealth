@@ -6,6 +6,11 @@ Run date: 2026-11-25. Authors: Xiangwen Wang (xw120@illinois.edu), Qichang Liu (
 
 These are actual measurements from the contributed PyHealth Dataset, Task, and WearableStressModel. They are distinct from the earlier independent reproduction. This is a limited-compute pilot, not a complete or numerically identical reproduction of the paper.
 
+Historical snapshot: these runs used `contrastive_target=stop_gradient`. The
+current default is `reference` (differentiable soft targets); pass the explicit
+legacy flag below to reproduce this table. The target-mode ablation is recorded
+separately in `lifesnaps_objective_ablation.md`; these numbers are not relabeled.
+
 ## Protocol and controlled comparison
 
 - Data: LifeSnaps, 71 participants, 5,850 complete participant-days, 228 labeled days. The pretraining Task also exposes complete unlabeled days without a stress field.
@@ -67,7 +72,8 @@ python examples/wearable/lifesnaps_stressdetection_wearable_stress.py \
   --root /path/to/rais_anonymized --output /tmp/lifesnaps-clsp-seed0 \
   --seed 0 --device cpu --max-pretrain-days 256 --text-batch-size 16 \
   --pretrain-epochs 30 --probe-epochs 10 --finetune-epochs 20 \
-  --supervised-epochs 30 --batch-size 512 --lr 0.001 --dropout 0.1
+  --supervised-epochs 30 --batch-size 512 --lr 0.001 --dropout 0.1 \
+  --contrastive-target stop_gradient
 ```
 
 Each output directory contains metrics.json (per-epoch validation/loss, held-out predictions and delay results), split.json, preprocessing.json, supervised.pt and clsp.pt. Raw participant-level artifacts and model weights are local outputs, not committed in this contribution. The CSV contains only aggregate run metrics, sufficient to recompute the tables.

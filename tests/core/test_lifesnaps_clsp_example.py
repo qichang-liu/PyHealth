@@ -68,3 +68,12 @@ def test_text_statistics_are_finite_for_constant_channels():
     assert "gender: female" in text
     assert "kurtosis 0.00" in text
     assert "nan" not in text and "stai" not in text
+
+
+def test_direct_statistics_match_prompt_and_handle_constant_values():
+    helper = example_helpers()
+    features = helper.statistical_features(np.ones((2, 5, 24)), np.ones((2, 22)))
+    assert features.shape == (2, 77)
+    np.testing.assert_array_equal(features[0, :11], [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+    assert np.isfinite(features).all()
+    np.testing.assert_array_equal(features[:, -22:], 1)
