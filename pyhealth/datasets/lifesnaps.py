@@ -1,6 +1,7 @@
 """LifeSnaps wearable dataset.
 
-Author: Qichang Liu (NetID: TODO, liuqc14@gmail.com)
+Contributors: Xiangwen Wang (xw120@illinois.edu),
+Qichang Liu (qichang4@illinois.edu).
 Paper: Yang, Yu & Sano, "Contrastive Pretraining for Stress Detection with
 Multimodal Wearable Sensor Data and Surveys", CHIL 2025, PMLR v287.
 https://proceedings.mlr.press/v287/yang25a.html
@@ -8,6 +9,7 @@ https://proceedings.mlr.press/v287/yang25a.html
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -24,8 +26,14 @@ _ZONE_COLS = [
     "minutes_in_default_zone_3",
 ]
 _PLACE_COLS = [
-    "ENTERTAINMENT", "GYM", "HOME", "HOME_OFFICE",
-    "OTHER", "OUTDOORS", "TRANSIT", "WORK/SCHOOL",
+    "ENTERTAINMENT",
+    "GYM",
+    "HOME",
+    "HOME_OFFICE",
+    "OTHER",
+    "OUTDOORS",
+    "TRANSIT",
+    "WORK/SCHOOL",
 ]
 _STATIC_COLS = ["age", "gender", "bmi", "step_goal_label"]
 _PERSONALITY_COLS = [
@@ -57,7 +65,9 @@ class LifeSnapsDataset(BaseDataset):
     - ``lifesnaps-daily.csv``: one row per complete participant-day with daily
       context (heart-rate zone minutes, demographics, place categories,
       IPIP personality) and, where available, the binary stress label derived
-      from the scored STAI category (Above average -> 1, else 0).
+      from the scored STAI category (Above average -> 1; Average or Below
+      average -> 0). Missing categories remain unlabeled; unknown nonempty
+      categories raise ``ValueError``.
 
     Citations:
         Yfantidou et al. "LifeSnaps, a 4-month multi-modal dataset capturing
@@ -70,6 +80,9 @@ class LifeSnapsDataset(BaseDataset):
         root: path to the unzipped ``rais_anonymized`` directory.
         dataset_name: optional dataset name, defaults to ``"lifesnaps"``.
         config_path: optional config path, defaults to ``lifesnaps.yaml``.
+        cache_dir: optional directory for processed data caches.
+        num_workers: worker count. The default one executes event conversion
+            synchronously without a distributed scheduler or local server.
 
     Examples:
         >>> from pyhealth.datasets import LifeSnapsDataset
@@ -84,23 +97,29 @@ class LifeSnapsDataset(BaseDataset):
         root: str,
         dataset_name: str | None = None,
         config_path: str | None = None,
+        cache_dir: str | Path | None = None,
+        num_workers: int = 1,
     ) -> None:
         if config_path is None:
             logger.info("No config provided, using default lifesnaps.yaml")
             config_path = Path(__file__).parent / "configs" / "lifesnaps.yaml"
-        if not (Path(root) / "lifesnaps-hourly.csv").exists() or not (
-            Path(root) / "lifesnaps-daily.csv"
-        ).exists():
+        if (
+            not (Path(root) / "lifesnaps-hourly.csv").exists()
+            or not (Path(root) / "lifesnaps-daily.csv").exists()
+        ):
             self.prepare_metadata(root)
         super().__init__(
             root=root,
             tables=["lifesnaps_hourly", "lifesnaps_daily"],
             dataset_name=dataset_name or "lifesnaps",
             config_path=config_path,
+            cache_dir=cache_dir,
+            num_workers=num_workers,
         )
 
     @staticmethod
-    def _mode_or_nan(series: pd.Series):
+    def _mode_or_nan(series: pd.Series) -> Any:
+        """Return the most common nonmissing scalar, or NaN for an empty column."""
         series = series.dropna()
         return series.mode().iloc[0] if len(series) else np.nan
 
@@ -117,15 +136,22 @@ class LifeSnapsDataset(BaseDataset):
 
         Args:
             root: path to the unzipped ``rais_anonymized`` directory.
+
+        Raises:
+            ValueError: If no complete participant-days remain, or a nonempty
+                STAI category is not Above average, Average, or Below average.
         """
         root_path = Path(root)
         hourly_csv = (
-            root_path / "csv_rais_anonymized"
-            / "hourly_fitbit_sema_df_unprocessed.csv"
+            root_path / "csv_rais_anonymized" / "hourly_fitbit_sema_df_unprocessed.csv"
         )
         usecols = (
-            ["id", "date", "hour"] + _TS_COLS + _ZONE_COLS + _PLACE_COLS
-            + _STATIC_COLS + ["activityType"]
+            ["id", "date", "hour"]
+            + _TS_COLS
+            + _ZONE_COLS
+            + _PLACE_COLS
+            + _STATIC_COLS
+            + ["activityType"]
         )
         hourly = pd.read_csv(hourly_csv, usecols=usecols, low_memory=False)
         hourly["day"] = pd.to_datetime(hourly["date"]).dt.date.astype(str)
@@ -162,34 +188,42 @@ class LifeSnapsDataset(BaseDataset):
                 row[key] = self._mode_or_nan(group[col])
             daily_rows.append(row)
 
+        if not daily_rows:
+            raise ValueError(
+                "LifeSnaps has no complete participant-days (hours 0..23)."
+            )
         daily = pd.DataFrame(daily_rows)
 
         personality = pd.read_csv(
             root_path / "scored_surveys" / "personality.csv"
         ).rename(columns={"user_id": "patient_id"})
-        personality = personality[
-            ["patient_id"] + _PERSONALITY_COLS
-        ].drop_duplicates("patient_id")
+        personality = personality[["patient_id"] + _PERSONALITY_COLS].drop_duplicates(
+            "patient_id"
+        )
         daily = daily.merge(personality, on="patient_id", how="left")
 
         stai = pd.read_csv(root_path / "scored_surveys" / "stai.csv").rename(
             columns={"user_id": "patient_id"}
         )
         stai["day"] = pd.to_datetime(stai["submitdate"]).dt.date.astype(str)
-        stai["stress_label"] = (
-            stai["stai_stress_category"] == "Above average"
-        ).astype(int)
+        category = stai["stai_stress_category"].astype("string").str.strip()
+        category = category.replace("", pd.NA)
+        label_map = {"Above average": 1, "Average": 0, "Below average": 0}
+        invalid = category.notna() & ~category.isin(label_map)
+        if invalid.any():
+            unknown = sorted(category[invalid].unique().tolist())
+            raise ValueError(f"Unknown STAI stress categories: {unknown}")
+        stai["stress_label"] = category.map(label_map)
         stai = stai[["patient_id", "day", "stress_label"]].drop_duplicates(
             ["patient_id", "day"]
         )
         daily = daily.merge(stai, on=["patient_id", "day"], how="left")
 
-        pd.concat(hourly_rows).to_csv(
-            root_path / "lifesnaps-hourly.csv", index=False
-        )
+        pd.concat(hourly_rows).to_csv(root_path / "lifesnaps-hourly.csv", index=False)
         daily.to_csv(root_path / "lifesnaps-daily.csv", index=False)
         n_labeled = int(daily["stress_label"].notna().sum())
         logger.info(
             "LifeSnaps prepared: %d complete days, %d labeled",
-            len(daily), n_labeled,
+            len(daily),
+            n_labeled,
         )

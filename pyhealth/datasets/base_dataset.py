@@ -439,6 +439,8 @@ class BaseDataset(ABC):
                 - **str** or **Path**: Used as the root cache directory path. A UUID
                   is appended to the provided path to capture dataset configuration.
             num_workers (int): Number of worker processes for parallel operations.
+                One uses the synchronous Dask scheduler for event conversion,
+                without starting a local distributed cluster or network server.
             dev (bool): Whether to run in dev mode (limits to 1000 patients).
         """
         if len(set(tables)) != len(tables):
@@ -676,6 +678,19 @@ class BaseDataset(ABC):
         compute_ok = False
         try:
             df = self.load_data()
+            if self.num_workers == 1:
+                # Match the sequential task/processor paths for small datasets.
+                # Execute the same event graph without a distributed scheduler.
+                if self.dev:
+                    patients = df["patient_id"].unique().head(1000).tolist()
+                    df = df[df["patient_id"].isin(patients)]
+                logger.info(f"Caching event dataframe sequentially to {output_dir}...")
+                collection = df.sort_values("patient_id").to_parquet(
+                    output_dir, write_index=False, compute=False
+                )
+                collection.compute(scheduler="synchronous")
+                compute_ok = True
+                return
             with DaskCluster(
                 n_workers=self.num_workers,
                 threads_per_worker=1,

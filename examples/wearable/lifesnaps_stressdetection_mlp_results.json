@@ -1,0 +1,577 @@
+{
+  "synthetic": false,
+  "python": "3.12.15",
+  "torch": "2.14.1",
+  "device": "cpu",
+  "threads": 1,
+  "split": "PatientSplit(0.6, 0.2, 0.2); per-seed fixed across configurations",
+  "normalization": "per-coordinate training mean/std; constant scale=1",
+  "selection": "minimum validation BCE loss; no test selection",
+  "model": "PyHealth MLP; embedding_dim=32, hidden_dim=32, n_layers=2",
+  "optimizer": "Adam lr=0.001, batch_size=64",
+  "source_sha256": {
+    "lifesnaps_stressdetection_mlp.py": "2b19e6cb4b5eab64261b120babdbf90337ebf820efeeb48cd47e88f8c4e4e3cc",
+    "lifesnaps.py": "e51991bea98a330adf4d35a306d7485168614fd0c1a409cfb69a67bb6d6ae7e4",
+    "stress_detection_lifesnaps.py": "9d3c2e66878a39f182996993f2447c1f86b9b62292033e72bbb548576dcf2fad"
+  },
+  "runs": [
+    {
+      "configuration": "both",
+      "seed": 0,
+      "epochs": 20,
+      "task_kwargs": {},
+      "partitions": {
+        "train": {
+          "samples": 145,
+          "patients": 30,
+          "positive": 52,
+          "negative": 93,
+          "sample_key_sha256": "7c957f623e5aa91b78f6dcb06166814d69dc4edf8e0d1d546410102ce7b593a5"
+        },
+        "validation": {
+          "samples": 33,
+          "patients": 10,
+          "positive": 11,
+          "negative": 22,
+          "sample_key_sha256": "78eed73c561b11b8f2ab057ef8a1847630502c81f90a29cb1caaf84ccb6fa634"
+        },
+        "test": {
+          "samples": 50,
+          "patients": 10,
+          "positive": 17,
+          "negative": 33,
+          "sample_key_sha256": "72bbe7c3a5decab6222e1ddb8fe5da08164161be151b400b8381ef21830f8b1b"
+        }
+      },
+      "test_roc_auc": 0.6452762923351159,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6018955111503601,
+      "prepare_seconds": 1.3750804578885436,
+      "train_seconds": 0.0996712080668658,
+      "total_seconds": 1.476737790973857
+    },
+    {
+      "configuration": "sensors",
+      "seed": 0,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "sensors"
+      },
+      "partitions": {
+        "train": {
+          "samples": 145,
+          "patients": 30,
+          "positive": 52,
+          "negative": 93,
+          "sample_key_sha256": "7c957f623e5aa91b78f6dcb06166814d69dc4edf8e0d1d546410102ce7b593a5"
+        },
+        "validation": {
+          "samples": 33,
+          "patients": 10,
+          "positive": 11,
+          "negative": 22,
+          "sample_key_sha256": "78eed73c561b11b8f2ab057ef8a1847630502c81f90a29cb1caaf84ccb6fa634"
+        },
+        "test": {
+          "samples": 50,
+          "patients": 10,
+          "positive": 17,
+          "negative": 33,
+          "sample_key_sha256": "72bbe7c3a5decab6222e1ddb8fe5da08164161be151b400b8381ef21830f8b1b"
+        }
+      },
+      "test_roc_auc": 0.659536541889483,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.5992096662521362,
+      "prepare_seconds": 0.8061749171465635,
+      "train_seconds": 0.09727829182520509,
+      "total_seconds": 0.9051755419932306
+    },
+    {
+      "configuration": "context",
+      "seed": 0,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "context"
+      },
+      "partitions": {
+        "train": {
+          "samples": 145,
+          "patients": 30,
+          "positive": 52,
+          "negative": 93,
+          "sample_key_sha256": "7c957f623e5aa91b78f6dcb06166814d69dc4edf8e0d1d546410102ce7b593a5"
+        },
+        "validation": {
+          "samples": 33,
+          "patients": 10,
+          "positive": 11,
+          "negative": 22,
+          "sample_key_sha256": "78eed73c561b11b8f2ab057ef8a1847630502c81f90a29cb1caaf84ccb6fa634"
+        },
+        "test": {
+          "samples": 50,
+          "patients": 10,
+          "positive": 17,
+          "negative": 33,
+          "sample_key_sha256": "72bbe7c3a5decab6222e1ddb8fe5da08164161be151b400b8381ef21830f8b1b"
+        }
+      },
+      "test_roc_auc": 0.6176470588235294,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6350485682487488,
+      "prepare_seconds": 0.8056308331433684,
+      "train_seconds": 0.11018754099495709,
+      "total_seconds": 0.9175621250178665
+    },
+    {
+      "configuration": "offset1",
+      "seed": 0,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 1
+      },
+      "partitions": {
+        "train": {
+          "samples": 145,
+          "patients": 30,
+          "positive": 52,
+          "negative": 93,
+          "sample_key_sha256": "7c957f623e5aa91b78f6dcb06166814d69dc4edf8e0d1d546410102ce7b593a5"
+        },
+        "validation": {
+          "samples": 33,
+          "patients": 10,
+          "positive": 11,
+          "negative": 22,
+          "sample_key_sha256": "78eed73c561b11b8f2ab057ef8a1847630502c81f90a29cb1caaf84ccb6fa634"
+        },
+        "test": {
+          "samples": 50,
+          "patients": 10,
+          "positive": 17,
+          "negative": 33,
+          "sample_key_sha256": "72bbe7c3a5decab6222e1ddb8fe5da08164161be151b400b8381ef21830f8b1b"
+        }
+      },
+      "test_roc_auc": 0.6925133689839571,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.5856549143791199,
+      "prepare_seconds": 0.7447331668809056,
+      "train_seconds": 0.09673154097981751,
+      "total_seconds": 0.8432437919545919
+    },
+    {
+      "configuration": "offset7",
+      "seed": 0,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 7
+      },
+      "partitions": {
+        "train": {
+          "samples": 145,
+          "patients": 30,
+          "positive": 52,
+          "negative": 93,
+          "sample_key_sha256": "7c957f623e5aa91b78f6dcb06166814d69dc4edf8e0d1d546410102ce7b593a5"
+        },
+        "validation": {
+          "samples": 33,
+          "patients": 10,
+          "positive": 11,
+          "negative": 22,
+          "sample_key_sha256": "78eed73c561b11b8f2ab057ef8a1847630502c81f90a29cb1caaf84ccb6fa634"
+        },
+        "test": {
+          "samples": 50,
+          "patients": 10,
+          "positive": 17,
+          "negative": 33,
+          "sample_key_sha256": "72bbe7c3a5decab6222e1ddb8fe5da08164161be151b400b8381ef21830f8b1b"
+        }
+      },
+      "test_roc_auc": 0.6836007130124777,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.5810019969940186,
+      "prepare_seconds": 0.8249278329312801,
+      "train_seconds": 0.09863674989901483,
+      "total_seconds": 0.9253177919890732
+    },
+    {
+      "configuration": "both",
+      "seed": 1,
+      "epochs": 20,
+      "task_kwargs": {},
+      "partitions": {
+        "train": {
+          "samples": 140,
+          "patients": 30,
+          "positive": 51,
+          "negative": 89,
+          "sample_key_sha256": "0a0f262d3d866a1356d7ffb92c6410641df4e0a6af70427a8b8ff879252b6ce5"
+        },
+        "validation": {
+          "samples": 45,
+          "patients": 10,
+          "positive": 17,
+          "negative": 28,
+          "sample_key_sha256": "6a8aa6fbc935abf515bbb07ca54622bf6df1de840d12c6213ecb147a485951a8"
+        },
+        "test": {
+          "samples": 43,
+          "patients": 10,
+          "positive": 12,
+          "negative": 31,
+          "sample_key_sha256": "5fb76848dd8a0332f5a8b92e7a03991f240af761a744abd3672915e14116d9db"
+        }
+      },
+      "test_roc_auc": 0.7123655913978495,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6377397775650024,
+      "prepare_seconds": 0.050626750104129314,
+      "train_seconds": 0.09797029104083776,
+      "total_seconds": 0.15030016610398889
+    },
+    {
+      "configuration": "sensors",
+      "seed": 1,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "sensors"
+      },
+      "partitions": {
+        "train": {
+          "samples": 140,
+          "patients": 30,
+          "positive": 51,
+          "negative": 89,
+          "sample_key_sha256": "0a0f262d3d866a1356d7ffb92c6410641df4e0a6af70427a8b8ff879252b6ce5"
+        },
+        "validation": {
+          "samples": 45,
+          "patients": 10,
+          "positive": 17,
+          "negative": 28,
+          "sample_key_sha256": "6a8aa6fbc935abf515bbb07ca54622bf6df1de840d12c6213ecb147a485951a8"
+        },
+        "test": {
+          "samples": 43,
+          "patients": 10,
+          "positive": 12,
+          "negative": 31,
+          "sample_key_sha256": "5fb76848dd8a0332f5a8b92e7a03991f240af761a744abd3672915e14116d9db"
+        }
+      },
+      "test_roc_auc": 0.685483870967742,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6233620643615723,
+      "prepare_seconds": 0.047150874976068735,
+      "train_seconds": 0.09447904210537672,
+      "total_seconds": 0.1433621251489967
+    },
+    {
+      "configuration": "context",
+      "seed": 1,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "context"
+      },
+      "partitions": {
+        "train": {
+          "samples": 140,
+          "patients": 30,
+          "positive": 51,
+          "negative": 89,
+          "sample_key_sha256": "0a0f262d3d866a1356d7ffb92c6410641df4e0a6af70427a8b8ff879252b6ce5"
+        },
+        "validation": {
+          "samples": 45,
+          "patients": 10,
+          "positive": 17,
+          "negative": 28,
+          "sample_key_sha256": "6a8aa6fbc935abf515bbb07ca54622bf6df1de840d12c6213ecb147a485951a8"
+        },
+        "test": {
+          "samples": 43,
+          "patients": 10,
+          "positive": 12,
+          "negative": 31,
+          "sample_key_sha256": "5fb76848dd8a0332f5a8b92e7a03991f240af761a744abd3672915e14116d9db"
+        }
+      },
+      "test_roc_auc": 0.30913978494623656,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6606295108795166,
+      "prepare_seconds": 0.04871504218317568,
+      "train_seconds": 0.09725674986839294,
+      "total_seconds": 0.1478043331298977
+    },
+    {
+      "configuration": "offset1",
+      "seed": 1,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 1
+      },
+      "partitions": {
+        "train": {
+          "samples": 140,
+          "patients": 30,
+          "positive": 51,
+          "negative": 89,
+          "sample_key_sha256": "0a0f262d3d866a1356d7ffb92c6410641df4e0a6af70427a8b8ff879252b6ce5"
+        },
+        "validation": {
+          "samples": 45,
+          "patients": 10,
+          "positive": 17,
+          "negative": 28,
+          "sample_key_sha256": "6a8aa6fbc935abf515bbb07ca54622bf6df1de840d12c6213ecb147a485951a8"
+        },
+        "test": {
+          "samples": 43,
+          "patients": 10,
+          "positive": 12,
+          "negative": 31,
+          "sample_key_sha256": "5fb76848dd8a0332f5a8b92e7a03991f240af761a744abd3672915e14116d9db"
+        }
+      },
+      "test_roc_auc": 0.6827956989247311,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6316699385643005,
+      "prepare_seconds": 0.04888591612689197,
+      "train_seconds": 0.09547954192385077,
+      "total_seconds": 0.14602033304981887
+    },
+    {
+      "configuration": "offset7",
+      "seed": 1,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 7
+      },
+      "partitions": {
+        "train": {
+          "samples": 140,
+          "patients": 30,
+          "positive": 51,
+          "negative": 89,
+          "sample_key_sha256": "0a0f262d3d866a1356d7ffb92c6410641df4e0a6af70427a8b8ff879252b6ce5"
+        },
+        "validation": {
+          "samples": 45,
+          "patients": 10,
+          "positive": 17,
+          "negative": 28,
+          "sample_key_sha256": "6a8aa6fbc935abf515bbb07ca54622bf6df1de840d12c6213ecb147a485951a8"
+        },
+        "test": {
+          "samples": 43,
+          "patients": 10,
+          "positive": 12,
+          "negative": 31,
+          "sample_key_sha256": "5fb76848dd8a0332f5a8b92e7a03991f240af761a744abd3672915e14116d9db"
+        }
+      },
+      "test_roc_auc": 0.7016129032258065,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6368135213851929,
+      "prepare_seconds": 0.04762520897202194,
+      "train_seconds": 0.09444704093039036,
+      "total_seconds": 0.14370991685427725
+    },
+    {
+      "configuration": "both",
+      "seed": 2,
+      "epochs": 20,
+      "task_kwargs": {},
+      "partitions": {
+        "train": {
+          "samples": 146,
+          "patients": 30,
+          "positive": 53,
+          "negative": 93,
+          "sample_key_sha256": "0c0a1e323c01173ff6d949853f6e2d41858f5a43a6e1b1c0fe3826039a648547"
+        },
+        "validation": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 19,
+          "negative": 22,
+          "sample_key_sha256": "13c32b9557fadbc31c79d7d511e746dcc3311fdd4e9f92e61848fc299cf13a49"
+        },
+        "test": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 8,
+          "negative": 33,
+          "sample_key_sha256": "2642989240423d09d97cc5a3b684777d3793f8c897efc94141fe53ccebe6c068"
+        }
+      },
+      "test_roc_auc": 0.7272727272727273,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6154653429985046,
+      "prepare_seconds": 0.04677395801991224,
+      "train_seconds": 0.09385149995796382,
+      "total_seconds": 0.14220200013369322
+    },
+    {
+      "configuration": "sensors",
+      "seed": 2,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "sensors"
+      },
+      "partitions": {
+        "train": {
+          "samples": 146,
+          "patients": 30,
+          "positive": 53,
+          "negative": 93,
+          "sample_key_sha256": "0c0a1e323c01173ff6d949853f6e2d41858f5a43a6e1b1c0fe3826039a648547"
+        },
+        "validation": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 19,
+          "negative": 22,
+          "sample_key_sha256": "13c32b9557fadbc31c79d7d511e746dcc3311fdd4e9f92e61848fc299cf13a49"
+        },
+        "test": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 8,
+          "negative": 33,
+          "sample_key_sha256": "2642989240423d09d97cc5a3b684777d3793f8c897efc94141fe53ccebe6c068"
+        }
+      },
+      "test_roc_auc": 0.7007575757575758,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6242415904998779,
+      "prepare_seconds": 0.04684700001962483,
+      "train_seconds": 0.09659079206176102,
+      "total_seconds": 0.14508550008758903
+    },
+    {
+      "configuration": "context",
+      "seed": 2,
+      "epochs": 20,
+      "task_kwargs": {
+        "feature_set": "context"
+      },
+      "partitions": {
+        "train": {
+          "samples": 146,
+          "patients": 30,
+          "positive": 53,
+          "negative": 93,
+          "sample_key_sha256": "0c0a1e323c01173ff6d949853f6e2d41858f5a43a6e1b1c0fe3826039a648547"
+        },
+        "validation": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 19,
+          "negative": 22,
+          "sample_key_sha256": "13c32b9557fadbc31c79d7d511e746dcc3311fdd4e9f92e61848fc299cf13a49"
+        },
+        "test": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 8,
+          "negative": 33,
+          "sample_key_sha256": "2642989240423d09d97cc5a3b684777d3793f8c897efc94141fe53ccebe6c068"
+        }
+      },
+      "test_roc_auc": 0.7386363636363635,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6212088465690613,
+      "prepare_seconds": 0.04846612480469048,
+      "train_seconds": 0.09471979201771319,
+      "total_seconds": 0.14483029185794294
+    },
+    {
+      "configuration": "offset1",
+      "seed": 2,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 1
+      },
+      "partitions": {
+        "train": {
+          "samples": 146,
+          "patients": 30,
+          "positive": 53,
+          "negative": 93,
+          "sample_key_sha256": "0c0a1e323c01173ff6d949853f6e2d41858f5a43a6e1b1c0fe3826039a648547"
+        },
+        "validation": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 19,
+          "negative": 22,
+          "sample_key_sha256": "13c32b9557fadbc31c79d7d511e746dcc3311fdd4e9f92e61848fc299cf13a49"
+        },
+        "test": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 8,
+          "negative": 33,
+          "sample_key_sha256": "2642989240423d09d97cc5a3b684777d3793f8c897efc94141fe53ccebe6c068"
+        }
+      },
+      "test_roc_auc": 0.7045454545454546,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.5756089091300964,
+      "prepare_seconds": 0.046993917087092996,
+      "train_seconds": 0.09466845798306167,
+      "total_seconds": 0.14326162496581674
+    },
+    {
+      "configuration": "offset7",
+      "seed": 2,
+      "epochs": 20,
+      "task_kwargs": {
+        "context_staleness_days": 7
+      },
+      "partitions": {
+        "train": {
+          "samples": 146,
+          "patients": 30,
+          "positive": 53,
+          "negative": 93,
+          "sample_key_sha256": "0c0a1e323c01173ff6d949853f6e2d41858f5a43a6e1b1c0fe3826039a648547"
+        },
+        "validation": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 19,
+          "negative": 22,
+          "sample_key_sha256": "13c32b9557fadbc31c79d7d511e746dcc3311fdd4e9f92e61848fc299cf13a49"
+        },
+        "test": {
+          "samples": 41,
+          "patients": 10,
+          "positive": 8,
+          "negative": 33,
+          "sample_key_sha256": "2642989240423d09d97cc5a3b684777d3793f8c897efc94141fe53ccebe6c068"
+        }
+      },
+      "test_roc_auc": 0.7386363636363636,
+      "test_roc_auc_reason": null,
+      "test_loss": 0.6119917035102844,
+      "prepare_seconds": 0.048470166977494955,
+      "train_seconds": 0.09397845808416605,
+      "total_seconds": 0.1440757499076426
+    }
+  ],
+  "data_release": "LifeSnaps Zenodo 7229547; prepared complete-hour participant-days",
+  "data_file_sha256": {
+    "csv_rais_anonymized/hourly_fitbit_sema_df_unprocessed.csv": "99ecc8e2e0a5d7cfd766de835e97aef62b08d1ff767a73185f2d14fed0aed8fd",
+    "scored_surveys/personality.csv": "65f5d1d1c429841f3a679580320b783a7cf8f8b47220047719ea5efe34a8b645",
+    "scored_surveys/stai.csv": "808341b8262a1e82921eacfc7ad836fbff578e1fbfc127859e6eb134962036c0",
+    "lifesnaps-hourly.csv": "27e9ddcb2e31733c33b115489c9da9f2e296f5812f287dc9499e0de8720dd6a1",
+    "lifesnaps-daily.csv": "267714c03e9dc8d4876bd166218a5fdc542fca05127e0e9c2c5aa54a8464c60c"
+  },
+  "recorded_date": "2026-11-25"
+}

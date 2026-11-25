@@ -17,6 +17,15 @@ the binary daily stress label from the scored STAI category. Label-derived
 fields are kept out of model inputs by the companion task
 :class:`pyhealth.tasks.StressDetectionLifeSnaps`.
 
+Above average maps to 1, and Average or Below average maps to 0. Empty or
+missing STAI categories remain unlabeled; unknown nonempty categories raise
+``ValueError``. An input with no complete days also raises a clear error.
+
+``num_workers=1`` (the default) uses synchronous event conversion and the
+existing sequential task/processor paths. It does not start a Dask server.
+The same YAML loading and event transformation are executed; larger worker
+counts retain distributed processing.
+
 .. autoclass:: pyhealth.datasets.LifeSnapsDataset
     :members:
     :undoc-members:
