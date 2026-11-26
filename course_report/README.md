@@ -2,9 +2,9 @@
 
 作者：Xiangwen Wang、Qichang Liu · CS598 Deep Learning for Healthcare · 整理日期：2026-11-26
 
-我们围绕多模态压力检测开展了论文复现、PyHealth集成和机制分析。研究以可穿戴传感器与背景信息为输入，考察文字引导的对比预训练能否改善压力分类，并进一步分析context时效性、预训练文字表示和评价指标对结论的影响。
+**本项目选择课程Option 4：Dataset + Task + Model（Full Pipeline）。** 我们以LifeSnaps为主数据集，将原始记录加载、每日压力任务、多模态模型和训练评估连接成完整PyHealth流程，并以独立复现和消融实验检验文字引导预训练的收益。研究同时考察context时效性、文字表示机制和总体AUC的含义。
 
-我们完成了LifeSnaps的Dataset、Task、Model和完整训练流程，并执行了proposal计划的日历context干预、文本机制对照和同人/跨人AUC分析。在当前实验协议下，结果未显示稳定的CLSP预训练优势，也未建立其对旧context的鲁棒性优势。这些结果将研究重点从总体分数的接近程度，推进到模型机制、使用条件与评价含义的检验。
+我们完成了LifeSnaps的Dataset、Task、Model和完整训练流程，并执行了日历context干预、文本机制对照和同人/跨人AUC分析。在当前实验协议下，结果未显示稳定的CLSP预训练优势，也未建立其对旧context的鲁棒性优势。这些结果将研究重点从总体分数的接近程度，推进到模型机制、使用条件与评价含义的检验。
 
 ## 1. 研究背景与问题定义
 
@@ -37,17 +37,35 @@ LifeSnaps是PyHealth贡献的主数据集：71名参与者、5,850个完整日�
 
 作者CLSP相对该监督基线的均值差分别为5.27和0.33个百分点，但其优势并未覆盖所有比较方法。我们的结果分析区分了概率AUC与硬预测AUC；PMData在论文中的具体指标口径仍有待进一步核对，因此与作者数值的比较存在这一限制。
 
-## 3. PyHealth实现与复现过程
+## 3. Dataset + Task + Model全流程贡献
 
-我们将原始数据处理、预测任务与模型训练连接为完整的PyHealth流程：原始CSV → LifeSnapsDataset → StressDetectionLifeSnaps → 样本划分与预处理 → WearableStressModel → 训练及评估。
+我们的核心实现覆盖三个相互衔接的组件。Dataset提供统一的记录表示，Task定义模型学习的样本和目标，Model完成表示学习和预测；训练example连接这三个组件，执行数据划分、预处理、优化与评估。这一实现对应课程的Core Implementation与Full Pipeline贡献。
 
-Dataset负责读取和整理记录：按人和日期组织小时数据，去掉重复小时，保留原顺序为0到23的完整小时日期，对已有小时行里的传感器缺失值插值并补齐；只有23小时的日期则排除。缺小时记录和某个小时内数值缺失是两种不同情况。缺失压力标签保留为无标签，未知非空标签类别报错。YAML配置将处理后的CSV字段映射到BaseDataset的事件表示。
+### 3.1 Dataset：从LifeSnaps原始记录到PyHealth事件
 
-Task负责定义样本：从一个人的记录中构造每天的5×24传感器输入、22维context和二分类标签。监督任务只产生完整且有标签的日期；预训练任务也接受完整无标签日，而且不提供压力输出。Task还支持模态选择与历史观测配置。
+[LifeSnapsDataset](../pyhealth/datasets/lifesnaps.py)继承BaseDataset。它读取小时级传感器和问卷CSV，按参与者和日期组织数据，去除重复小时，并保留原顺序为0至23的完整日。已有小时行中的缺失传感器值经过插值和补齐；缺少小时记录的日期被排除。缺失压力标签保持无标签，未知非空类别和无完整日输入则触发明确异常。
 
-Model负责计算表示、预测和loss。我们实现了PyHealth BaseModel接口、sensor/context编码器、融合、对比目标、分类头、预训练/探测/微调阶段以及保存恢复。训练example负责参与者划分、只用训练数据拟合预处理、真实文字/BERT表示、优化和评价。
+[配置YAML](../pyhealth/datasets/configs/lifesnaps.yaml)定义小时和每日两张表的文件、参与者ID、时间和属性映射。整理后的记录经由父类成为PyHealth事件，因此后续任务可以复用统一的数据接口。LifeSnaps预处理得到71名参与者、5,850个完整日期和228个有标签日期。
 
-一个实际纠错是soft target的梯度：初始实现截断了目标分布的梯度，而参考代码允许梯度流过。我们已将默认改为reference，保留stop_gradient和one_hot作为明确对照，并补充loss与梯度公式测试。这一改动修正了早期实现偏差，随后成为额外目标函数对照的研究对象。修正范围限于目标梯度行为，其他架构、编码、预处理和训练协议仍存在适配差异。作者代码为我们的实现提供了行为参考，原始算法归于论文作者。
+### 3.2 Task：从事件到每日压力预测样本
+
+[StressDetectionLifeSnaps](../pyhealth/tasks/stress_detection_lifesnaps.py)继承BaseTask，将“一个人一天”定义为样本单位。输入是5×24的传感器张量与22维context，监督目标为STAI类别映射的二分类标签。我们排除了STAI及其派生字段，避免目标信息进入数值和文字输入。
+
+Task的监督模式产生完整、有标签的日期；预训练模式包含完整无标签日，不提供压力目标。模态配置支持双模态、sensor-only和context-only，历史观测配置支持Task级消融。这些配置使同一Dataset能够支持不同训练任务，而无需重复实现原始数据加载。
+
+### 3.3 Model：多模态编码、对比学习与压力分类
+
+[WearableStressModel](../pyhealth/models/wearable_stress.py)继承BaseModel，包含sensor Transformer、context残差编码器、融合与投影层、压力分类头。监督阶段返回预测概率，并在提供标签时计算分类loss；预训练阶段对齐多模态表示与外部文字embedding，计算对比loss。模型还实现了冻结probe、fine-tune和checkpoint保存恢复。
+
+我们的模型贡献对应论文的多模态文字对齐方法。Transformer、残差网络和BERT是组成模块；贡献在于将其组合、训练目标与阶段行为接入PyHealth。原算法归于论文作者，作者代码曾作为行为参考。复现中发现的soft-target梯度差异已被修正：默认reference保留目标梯度，stop_gradient与one_hot作为明确对照；loss、梯度和旧checkpoint行为都有对应测试。该修正限于目标梯度，其他预处理和协议差异仍保留在结果解释中。
+
+### 3.4 完整训练与评估
+
+[完整example](../examples/wearable/lifesnaps_stressdetection_wearable_stress.py)实现了原始数据→事件→Task样本→参与者划分→训练集预处理→真实文字/BERT配对→对比预训练→冻结probe→fine-tune→留出评估。分类checkpoint由验证集指标选择，保存恢复后的预测经过一致性检查。监督基线使用相同的多模态结构，从头学习压力分类。
+
+这条流程已经在真实LifeSnaps数据上运行，相关目标和文字控制共完成15次CLSP训练。合成示例则提供无真实数据或BERT下载的短流程验证，其随机文字向量只用于检查软件链路。另一个[MLP example](../examples/wearable/lifesnaps_stressdetection_mlp.py)使用现有PyHealth MLP完成15次特征与Task配置实验，直接检验新Dataset/Task在已有模型中的可用性。
+
+完整模型流程提供了工程上的复用能力；真实实验是否支持预训练收益，则由后续数值比较回答。
 
 ## 4. 实验协议与主要复现结果
 
@@ -204,7 +222,7 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 
 共5配置×3seed＝15次训练。零输入分支可能仍有常量偏置，但不再提供该模态的样本差异信息。Both和sensor-only的均值接近，context-only波动较大。这一结果说明context单独使用时对划分较敏感，尚不足以判断其在其他模型和数据条件下的作用。
 
-观测偏移实验按可用记录数选择历史context，并为每个配置重新训练。它考察训练任务的变化，与第5节固定权重的日历干预具有不同含义。后者对应proposal的主要时效性实验。MLP和CLSP在split、标准化、模型结构、预算与checkpoint选择上不同，因此这里的均值不构成两类模型的直接优劣比较。
+观测偏移实验按可用记录数选择历史context，并为每个配置重新训练。它考察训练任务的变化，与第5节固定权重的日历干预具有不同含义。后者检验已训练模型在context更新延迟时的行为。MLP和CLSP在split、标准化、模型结构、预算与checkpoint选择上不同，因此这里的均值不构成两类模型的直接优劣比较。
 
 ### 对比目标控制
 
@@ -216,21 +234,21 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 | Stop-gradient soft target，截断目标梯度 | 50.08 ± 12.98 |
 | One-hot target，仅配对样本为正例 | 47.55 ± 9.17 |
 
-三种目标×3seed共进行了9次训练，结果未显示稳定优胜者。Reference保留为默认模式的依据是其与参考代码目标梯度行为的一致性。该实验源于复现过程中发现的实现差异，是proposal之外增加的控制。
+三种目标×3seed共进行了9次训练，结果未显示稳定优胜者。Reference保留为默认模式的依据是其与参考代码目标梯度行为的一致性。该实验量化了复现过程中发现的目标梯度差异，并补充了目标分布选择的对照。
 
 总体CLSP矩阵为9次目标训练＋6次新增文本训练＝15次；每次执行也训练匹配监督模型，重复一致的监督结果汇总时只算一次。日历重复评估不增加模型训练数。最终性能CSV为6种不同方法×4延迟×3seed＝72行。
 
-## 9. Proposal落实与研究范围
+## 9. 文档、代码质量与贡献交付
 
-研究以2026年10月25日修订的proposal为起点。原计划的必选贡献是LifeSnaps Dataset与Task，包括文档、合成测试和MLP特征消融；模型集成原本列为时间允许时的扩展。最终实现覆盖了这些内容，并进一步完成了PyHealth BaseModel与真实文字配对的预训练、probe、fine-tune全流程。
+除核心实现外，我们补齐了Dataset、Task和Model的公开导出、各自的API RST文档及目录索引，并为example提供运行配置、实验设置和实测findings。Docstrings说明参数、输入输出、异常与使用方式，方法保留类型标注。[项目README](../examples/wearable/README.md)串联环境配置、组件说明、合成示例、真实训练和结果分析。这些产物对应Required File Updates以及Core Implementation中的文档和代码质量要求。
 
-实验部分保留了proposal的主要设计。日历context实验使用k=0、1、3、7，同一参与者日期不晚于t−k的历史记录替换动态字段，同时固定sensor、static context、标签、模型权重和测试日期。训练分区fallback及其计数、participant-cluster paired bootstrap、同人/跨人AUC分解，以及预训练BERT、随机冻结BERT和统计投影三个文字侧对照均已执行。PMData作为独立复现的第二个数据集，而没有扩展为第二个PyHealth Dataset。
+实现采用独立的数据准备、样本构造、模型计算、训练辅助和结果分析模块。贡献Python文件经过针对性的Ruff lint与format检查；Dataset的行长与命名规则检查也通过，最长行为87字符。为处理单worker环境的本地端口限制，我们在BaseDataset中接入同步事件转换路径，同时保留原多worker路径。相关共享数据和缓存行为经过回归测试，多worker执行与全量Sphinx构建尚未验证。
 
-执行方案也引入了明确的范围限制。256个预训练日和三个seed是后续确定的小预算方案，proposal未预先指定这两个数值；因此现有实验检验了计划中的机制和控制关系，但结论限于该预算。目标梯度修正及其消融属于额外工作。作者实现曾作为行为参考，这一点也澄清了proposal中较强的clean-room表述。
+Ablation Study / Example Usage部分包含可运行的MLP配置实验、CLSP目标和文字控制、固定权重日历干预，以及分析入口和无身份信息的汇总结果。配置变化、数值比较和findings一起保存在贡献中，形成了从实验代码到结论的可追踪记录。MLP实验对应Dataset/Task的特征配置要求；CLSP实验提供模型机制控制，并未将其描述为学习率或隐藏维度的网格搜索。
 
-原计划的本地实现、实验和分析已经完成，但关于预训练收益和context延迟鲁棒性的假设未得到稳定支持。代码和结果已发布到个人fork，正式上游PR尚未创建。
+当前代码分支包含35个相对记录基点的贡献变更文件，已经推送到个人fork。提交说明已整理作者、论文、贡献类型、文件说明和验证结果，正式上游PR尚未创建。因此，现有证据体现的是实现、文档、测试和实验成果，PR发布与外部CI/审查仍是独立的交付环节。Option 4的额外学分取决于课程对完整性与novelty的最终评定。
 
-## 10. 实现验证
+## 10. 测试设计与验证结果
 
 我们通过合成数据测试检查数据处理、模型计算和分析方法的实现行为。Dataset/Task测试构造了四名虚拟参与者，包含完整天、23小时不完整天、重复小时、缺失值和无标签日。测试在真实CSV读取与事件转换路径上核验了3个监督样本、4个预训练日，以及标签、时间、输入形状和特征排除规则。
 
@@ -248,13 +266,15 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 
 ## 12. Video pre 的逻辑
 
-我们的项目从压力标签稀缺和多模态输入的学习问题出发。原论文用同一天数据的数值与文字视图进行对比预训练，为利用无标签记录提供了方法。我们将这一方法转化为PyHealth的Dataset、Task和Model，并在复现中发现、修正了目标梯度差异。
+本项目以Option 4的Dataset + Task + Model全流程为组织主线，从压力标签稀缺和多模态输入的学习问题出发。原论文用同一天数据的数值与文字视图进行对比预训练，为利用无标签记录提供了方法。我们以Dataset完成原始数据接入，以Task定义每日输入与压力标签，以Model实现对比预训练和分类，并通过完整example连接训练与评估。文档、类型标注和测试为三个组件提供了可复用性与验证证据；复现过程中发现的目标梯度差异也完成了修正。
 
 主要结果随后将叙述从方法实现推进到证据检验：在两数据集的独立复现以及受试者留出的PyHealth实验中，CLSP都未建立稳定优势。日历context实验进一步检验实际输入更新延迟，文字机制实验追问BERT预训练知识的贡献，AUC分解则检查总体分数是否足以反映个人的每日变化。MLP模态和对比目标控制为这些分析提供了补充背景。
 
-最终结论是，我们完成了proposal中的实验设计和完整软件流程，同时明确了负结果及其适用范围。项目展示的核心是从论文主张出发，经由可复现实现和有控制的实验，形成对方法机制、鲁棒性和评价指标的更具体理解。
+我们的最终贡献由Dataset、Task、Model、完整训练example、文档测试及实测消融共同构成。它们依次展示了数据接入、任务定义、方法实现、正确性验证和科学分析。实验没有建立稳定的预训练优势，但明确了这一结论的协议范围，并对context时效性、文字机制和个体变化评价给出了进一步证据。
 
 ## 参考文献与实验材料
+
+[项目成果与评分维度](contribution_summary.md)汇总了本报告各部分对应的已实施工作、验证结果和交付状态。
 
 - [论文与PDF入口](https://proceedings.mlr.press/v287/yang25a.html)：作者方法、Table 1和Figure 1/4/8。原图由作者创作；本报告的中文解释由本组整理，未把原图当作本组结果。
 - [PyHealth README](../examples/wearable/README.md)：环境、真实/合成运行命令与实验入口。
