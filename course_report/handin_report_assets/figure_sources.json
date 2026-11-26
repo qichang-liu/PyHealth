@@ -1,0 +1,41 @@
+{
+  "paper": "Yang, Yu and Sano (2025), Contrastive Pretraining for Stress Detection with Multimodal Wearable Sensor Data and Surveys",
+  "source": "https://proceedings.mlr.press/v287/yang25a.html",
+  "pdf_sha256": "418ddb87388a6421e2484ed73d97df1c2b0fb596732cd4d7ba4b424ef8c446e3",
+  "processing": "PDF figure-region crops rendered at 3x; no chart values altered; captions in report are our explanations.",
+  "figures": [
+    {
+      "file": "paper_figure1_framework.png",
+      "pdf_page": 3,
+      "crop_points": [
+        70,
+        88,
+        302,
+        255
+      ],
+      "description": "Figure 1: author framework"
+    },
+    {
+      "file": "paper_figure4_context.png",
+      "pdf_page": 8,
+      "crop_points": [
+        70,
+        121,
+        303,
+        274
+      ],
+      "description": "Figure 4: author LifeSnaps tabular feature analysis"
+    },
+    {
+      "file": "paper_figure8_label_distribution.png",
+      "pdf_page": 9,
+      "crop_points": [
+        309,
+        358,
+        547,
+        596
+      ],
+      "description": "Figure 8: author demographic label distributions"
+    }
+  ]
+}
