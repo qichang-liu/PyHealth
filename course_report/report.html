@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>多模态压力检测复现：项目报告与视频制作依据</title>
+<title>多模态压力检测的复现与扩展研究</title>
 <style>
 :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17324a;background:#f4f7fa}
 body{margin:0;padding:24px}main{max-width:1100px;margin:auto;background:white;padding:32px;border-radius:14px;box-shadow:0 5px 25px #17324a12}
@@ -11,46 +11,35 @@ table{border-collapse:collapse;width:100%;margin:18px 0}th,td{border:1px solid #
 li{margin:.4rem 0}pre{overflow:auto;background:#eef3f7;padding:16px;line-height:1.5}pre code{padding:0}
 .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;background:#eef3f7;padding:14px;border-radius:8px;margin:16px 0}.controls small{width:100%;color:#526579}.controls input,.controls select,.controls button{font:inherit;padding:7px;border:1px solid #bacbd9;border-radius:5px}.controls button{cursor:pointer}.toc{background:#f4f7fa;padding:14px;border-radius:8px}.toc ul{columns:2}.toc summary{cursor:pointer;font-weight:700}h2{scroll-margin-top:15px}
 @media print{body{padding:0}main{box-shadow:none;padding:0}tr{break-inside:avoid}tr[hidden]{display:table-row}.controls,.toc{display:none}} @media(max-width:700px){body{padding:8px}main{padding:18px}.toc ul{columns:1}}
-</style></head><body><main><details class="toc"><summary>章节导航</summary><ul><li><a href="#section-2">1. 我们要解决什么问题</a></li><li><a href="#section-3">2. 论文方法：同一天数据的两个视图</a></li><li><a href="#section-4">3. 我们实现了什么：从原始记录到预测</a></li><li><a href="#section-5">4. 两套实验协议：为什么结果不能混在一起比较</a></li><li><a href="#section-6">5. 消融一：旧context会不会让模型失效</a></li><li><a href="#section-11">6. 消融二：BERT的预训练知识到底带来什么</a></li><li><a href="#section-15">7. 诊断分析：模型是在区分人，还是在跟踪同一个人的变化</a></li><li><a href="#section-19">8. 另外两组控制：模态与对比目标</a></li><li><a href="#section-22">9. 有没有follow proposal：逐项对照</a></li><li><a href="#section-23">10. 正确性怎样验收</a></li><li><a href="#section-24">11. 队友怎样把报告转成4–7分钟视频</a></li><li><a href="#section-25">12. 代码、结果与报告怎样交付</a></li><li><a href="#section-26">证据与图源</a></li></ul></details><div class="controls"><label>搜索表格 <input id="row-search" type="search" placeholder="例如：测试、BERT、视频"></label>
-<label>状态 <select id="row-state"><option value="all">全部</option><option value="open">待完成 / 待核验</option><option value="done">已有证据 ✅</option></select></label>
-<button id="reset-filter" type="button">重置</button><span id="row-count" role="status"></span><small>筛选只影响表格显示，不更改完成状态或分数。</small></div><h1 id="section-1">多模态压力检测复现：项目报告与视频制作依据</h1>
+</style></head><body><main><details class="toc"><summary>章节导航</summary><ul><li><a href="#section-2">1. 研究背景与问题定义</a></li><li><a href="#section-3">2. 原论文的多模态对比学习方法</a></li><li><a href="#section-4">3. PyHealth实现与复现过程</a></li><li><a href="#section-5">4. 实验协议与主要复现结果</a></li><li><a href="#section-6">5. 日历context延迟消融</a></li><li><a href="#section-11">6. 文本分支机制消融</a></li><li><a href="#section-15">7. 同人和跨人AUC分解</a></li><li><a href="#section-19">8. 输入模态与对比目标的补充控制</a></li><li><a href="#section-22">9. Proposal落实与研究范围</a></li><li><a href="#section-23">10. 实现验证</a></li><li><a href="#section-24">11. 讨论与结论</a></li><li><a href="#section-25">12. Video pre 的逻辑</a></li><li><a href="#section-26">参考文献与实验材料</a></li></ul></details><h1 id="section-1">多模态压力检测的复现与扩展研究</h1>
 <p>作者：Xiangwen Wang、Qichang Liu · CS598 Deep Learning for Healthcare · 整理日期：2026-11-26</p>
-<p>这份报告供队友理解整个项目并制作4–7分钟视频。它将研究动机、模型、PyHealth实现、实验设计、实际结果与局限放在同一条叙述中。文中的实验是已有实跑结果，本次编写报告没有重新训练。课程不要求单独的final report；这份材料是组内协作用途。</p>
-<p><strong>项目结论：我们完成了LifeSnaps的Dataset、Task、Model和完整训练流程，并执行了proposal计划的日历context干预、文本机制对照和同人/跨人AUC分析。但在当前实验协议下，没有建立稳定的CLSP预训练优势，也没有建立更好的旧context鲁棒性。</strong> 实验完成与假设得到支持是两回事。</p>
-<h2 id="section-2">1. 我们要解决什么问题</h2>
-<p>可穿戴设备每天产生步数、心率等记录，但每天让参与者填写压力问卷成本较高，因此压力标签相对稀少。问题是：能否先利用大量无标签记录学到有用表示，再用少量有标签日期训练压力分类器？</p>
+<p>我们围绕多模态压力检测开展了论文复现、PyHealth集成和机制分析。研究以可穿戴传感器与背景信息为输入，考察文字引导的对比预训练能否改善压力分类，并进一步分析context时效性、预训练文字表示和评价指标对结论的影响。</p>
+<p>我们完成了LifeSnaps的Dataset、Task、Model和完整训练流程，并执行了proposal计划的日历context干预、文本机制对照和同人/跨人AUC分析。在当前实验协议下，结果未显示稳定的CLSP预训练优势，也未建立其对旧context的鲁棒性优势。这些结果将研究重点从总体分数的接近程度，推进到模型机制、使用条件与评价含义的检验。</p>
+<h2 id="section-2">1. 研究背景与问题定义</h2>
+<p>可穿戴设备每天产生步数、心率等记录，而连续收集压力问卷的成本较高，导致压力标签相对稀少。这种数据不平衡使自监督学习成为一个有吸引力的方向：模型先从大量无标签记录中学习表示，再利用有限的有标签日期完成压力分类。</p>
 <p>我们复现的论文是Yang、Yu、Sano的 <strong>Contrastive Pretraining for Stress Detection with Multimodal Wearable Sensor Data and Surveys</strong>，发表于CHIL 2025。研究同时使用随时间变化的传感器数据和表格型背景信息。后者包括人口学、人格、活动和场所等字段，并不全部是压力问卷答案。<a href="https://proceedings.mlr.press/v287/yang25a.html">论文及作者信息</a></p>
-<p>本项目的预测单位是“一个人一天”。LifeSnaps输入为五个传感器通道的24小时序列，以及22维context；目标是当天STAI类别转换的二分类：Above average为1，Average或Below average为0。压力标签和由标签生成的字段不能进入输入。我们研究的是当天压力分类，而非预测未来几天压力，也不是经过临床验证的诊断工具。</p>
+<p>本项目的预测单位是“一个人一天”。LifeSnaps输入为五个传感器通道的24小时序列，以及22维context；目标是当天STAI类别转换的二分类：Above average为1，Average或Below average为0。我们的输入排除了压力标签及其派生字段，以避免标签泄漏。任务对应当天压力分类；本研究的评估范围不包括未来压力预测或临床诊断有效性。</p>
 <p>LifeSnaps是PyHealth贡献的主数据集：71名参与者、5,850个完整日期、228个有标签日期；有标签日期来自其中50人。PMData用于另一套独立复现，传感器和context组成不同；当前没有贡献PMData的PyHealth Dataset/Task，也没有进行跨数据集训练后迁移测试。</p>
-<h2 id="section-3">2. 论文方法：同一天数据的两个视图</h2>
+<h2 id="section-3">2. 原论文的多模态对比学习方法</h2>
 <figure><img loading="lazy" src="handin_report_assets/paper_figure1_framework.png" alt="论文原图 Figure 1：多模态数据与文字视图的对齐框架"><figcaption>论文原图 Figure 1：多模态数据与文字视图的对齐框架</figcaption></figure>
-<p>图源：Yang、Yu、Sano，2025，原论文Figure 1，PDF第3页。这里保留作者图示；不是本组新实验结果。图像从本地论文PDF裁出图形区域，未更改图内数值或结构。</p>
+<p>图1来源：Yang、Yu、Sano（2025），原论文Figure 1，PDF第3页。图中展示作者提出的模型框架。</p>
 <p>第一条分支处理数值输入：传感器Transformer提取小时序列表示，残差网络编码tabular context，两者拼接、融合并投影。第二条分支把同一天的传感器统计量和context写成结构化文字，用冻结BERT得到文字表示，再进行投影。对比学习让两条分支形成相互对应的表示。</p>
-<p>例如，一个日期既有数值形式的心率序列和活动信息，也可描述为“heart rate mean …; activity …”。文字来自同一批原始信息，与数值输入有重合；它不是额外收集的临床报告。我们使用允许字段构建文字，不把压力标签写进去。这是CLIP风格的训练思路，并非直接调用图像CLIP预测压力。</p>
+<p>例如，一个日期的心率序列和活动信息既以数值形式出现，也可被描述为“heart rate mean …; activity …”。文字与数值分支因此共享底层测量信息。我们根据允许字段构建文字，并排除压力标签。模型采用CLIP风格的对齐目标，文字编码器则使用BERT。</p>
 <p>预训练后，先冻结表示模型、只训练分类头（linear probing），再微调模型进行压力分类。BERT只服务于预训练的文字视图；下游分类推理使用sensor/context分支即可。</p>
-<p>论文的核心假设是：文字引导的无标签多模态预训练能够改善下游压力分类。论文Table 1报告的AUC百分比如下。这些是作者结果，不能当作本组实测值：</p>
+<p>论文的核心假设是文字引导的无标签多模态预训练能够改善下游压力分类。作者在Table 1中报告了以下AUC结果，单位为百分比：</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>数据集</th><th>作者Supervised</th><th>作者CLSP</th></tr>
 <tr><td>LifeSnaps</td><td>67.18 ± 7.65</td><td>72.45 ± 4.70</td></tr>
 <tr><td>PMData</td><td>80.81 ± 1.62</td><td>81.14 ± 1.79</td></tr>
 </tbody></table></div>
-<p>作者CLSP相对该监督基线的均值差分别为5.27和0.33个百分点；这不等于在所有基线上都最优。我们的比较还需区分概率AUC与硬预测AUC，尤其PMData的论文指标口径仍有待进一步核对。</p>
-<h2 id="section-4">3. 我们实现了什么：从原始记录到预测</h2>
-<p>完整流程是：原始CSV → LifeSnapsDataset → StressDetectionLifeSnaps → 样本划分与预处理 → WearableStressModel → 训练及评估。</p>
-<p>Dataset负责读取和整理记录：按人和日期组织小时数据，去掉重复小时，保留原顺序为0到23的完整小时日期，对已有小时行里的传感器缺失值插值并补齐；只有23小时的日期则排除。缺小时记录和某个小时内数值缺失是两种不同情况。缺失压力标签保留为无标签，未知非空标签类别报错。YAML告诉BaseDataset怎样把处理后的CSV加载成事件。</p>
+<p>作者CLSP相对该监督基线的均值差分别为5.27和0.33个百分点，但其优势并未覆盖所有比较方法。我们的结果分析区分了概率AUC与硬预测AUC；PMData在论文中的具体指标口径仍有待进一步核对，因此与作者数值的比较存在这一限制。</p>
+<h2 id="section-4">3. PyHealth实现与复现过程</h2>
+<p>我们将原始数据处理、预测任务与模型训练连接为完整的PyHealth流程：原始CSV → LifeSnapsDataset → StressDetectionLifeSnaps → 样本划分与预处理 → WearableStressModel → 训练及评估。</p>
+<p>Dataset负责读取和整理记录：按人和日期组织小时数据，去掉重复小时，保留原顺序为0到23的完整小时日期，对已有小时行里的传感器缺失值插值并补齐；只有23小时的日期则排除。缺小时记录和某个小时内数值缺失是两种不同情况。缺失压力标签保留为无标签，未知非空标签类别报错。YAML配置将处理后的CSV字段映射到BaseDataset的事件表示。</p>
 <p>Task负责定义样本：从一个人的记录中构造每天的5×24传感器输入、22维context和二分类标签。监督任务只产生完整且有标签的日期；预训练任务也接受完整无标签日，而且不提供压力输出。Task还支持模态选择与历史观测配置。</p>
 <p>Model负责计算表示、预测和loss。我们实现了PyHealth BaseModel接口、sensor/context编码器、融合、对比目标、分类头、预训练/探测/微调阶段以及保存恢复。训练example负责参与者划分、只用训练数据拟合预处理、真实文字/BERT表示、优化和评价。</p>
-<div class="table-wrap"><table><tbody>
-<tr><th>核心代码</th><th>职责</th></tr>
-<tr><td><a href="../pyhealth/datasets/lifesnaps.py">Dataset</a></td><td>原始数据准备、完整日与标签处理、父类加载接入</td></tr>
-<tr><td><a href="../pyhealth/tasks/stress_detection_lifesnaps.py">Task</a></td><td>样本、特征、标签、无标签模式和配置</td></tr>
-<tr><td><a href="../pyhealth/models/wearable_stress.py">Model</a></td><td>编码器、损失、训练阶段及checkpoint</td></tr>
-<tr><td><a href="../examples/wearable/lifesnaps_stressdetection_wearable_stress.py">完整训练example</a></td><td>BERT配对、训练、评估、目标/文字/日历实验</td></tr>
-<tr><td><a href="../examples/wearable/lifesnaps_stressdetection_mlp.py">MLP example</a></td><td>现有PyHealth MLP的特征和task配置消融</td></tr>
-<tr><td><a href="../examples/wearable/lifesnaps_stressdetection_analysis.py">分析入口</a></td><td>汇总AUC、配对bootstrap、同人/跨人分解</td></tr>
-</tbody></table></div>
-<p>一个实际纠错是soft target的梯度：初始实现截断了目标分布的梯度，而参考代码允许梯度流过。我们已将默认改为reference，保留stop_gradient和one_hot作为明确对照，并补充loss与梯度公式测试。早期偏差不是事后可以宣称的“原计划创新”。修正这处目标也不意味着其他架构、编码、预处理和训练协议全部与作者相同。作者代码曾作为行为参考，算法贡献归作者。</p>
-<h2 id="section-5">4. 两套实验协议：为什么结果不能混在一起比较</h2>
+<p>一个实际纠错是soft target的梯度：初始实现截断了目标分布的梯度，而参考代码允许梯度流过。我们已将默认改为reference，保留stop_gradient和one_hot作为明确对照，并补充loss与梯度公式测试。这一改动修正了早期实现偏差，随后成为额外目标函数对照的研究对象。修正范围限于目标梯度行为，其他架构、编码、预处理和训练协议仍存在适配差异。作者代码为我们的实现提供了行为参考，原始算法归于论文作者。</p>
+<h2 id="section-5">4. 实验协议与主要复现结果</h2>
 <p>我们有两条实验线。独立repro追踪两数据集的论文复现；PyHealth example验证库内完整流程、受试者留出和新增消融。两条线回答的问题不同。</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>项目</th><th>独立研究复现</th><th>PyHealth CLSP pilot</th></tr>
@@ -61,38 +50,38 @@ li{margin:.4rem 0}pre{overflow:auto;background:#eef3f7;padding:16px;line-height:
 <tr><td>选模型方式</td><td>固定最终epoch</td><td>分类阶段validation probability AUC</td></tr>
 <tr><td>主要目的</td><td>在明确的本地协议下比较监督与CLSP</td><td>可复用流程和有控制的机制/鲁棒性实验</td></tr>
 </tbody></table></div>
-<p>独立复现修正目标梯度后，概率ROC-AUC结果如下。±是20个fold/seed结果的总体SD，不是置信区间，也不是20个人群独立验证：</p>
+<p>独立复现修正目标梯度后，得到下表中的概率ROC-AUC。±表示20个fold/seed结果的总体标准差；由于数据划分存在重叠，这些运行并不对应20个独立人群，标准差也不具有置信区间的含义。</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>数据集</th><th>Supervised</th><th>修正后的Reference CLSP</th></tr>
 <tr><td>LifeSnaps</td><td>74.37 ± 7.06</td><td>73.84 ± 6.95</td></tr>
 <tr><td>PMData</td><td>73.98 ± 2.49</td><td>71.74 ± 2.98</td></tr>
 </tbody></table></div>
-<p>40次CLSP是修正后的新训练，监督基线复用了原匹配记录，没有把它们说成新跑。我们实现并运行了复现，但没有建立作者报告的相对收益。预处理、context重建、split和训练选择等是可能影响因素；没有证据把差异完全归因于某一个因素。历史重复行实验和test-max超参选择属于诊断，不能当作无偏最终成绩。</p>
+<p>修正后的CLSP共进行了40次新训练，监督基线使用原有匹配运行的记录。在两个数据集上，CLSP均未稳定超过监督基线，因而没有重现作者报告的相对收益。预处理、context重建、split和训练选择等差异可能影响结果，但现有证据尚不足以确定其各自贡献。此前的重复行实验和test-max超参选择分析仅用于诊断，不纳入无偏最终性能的判断。</p>
 <p>PyHealth CLSP实验使用seed0/1/2，Adam lr0.001、batch512、dropout0.1，监督分支30epochs。只有训练参与者拟合预处理并进入预训练。测试集分别为37/46/39个有标签日、9/10/9名有标签参与者，规模较小。不同seed同时改变划分和初始化，SD包含两者的变化。</p>
-<h2 id="section-6">5. 消融一：旧context会不会让模型失效</h2>
-<h3 id="section-7">为什么值得做</h3>
-<p>部署时传感器可能持续记录，但context可能没有及时更新。我们想检验两件事：旧context是否使AUC下降，以及CLSP是否比从头监督训练下降得更少。这个问题比单纯看同日测试分数更接近输入更新不及时的使用条件。</p>
+<h2 id="section-6">5. 日历context延迟消融</h2>
+<h3 id="section-7">研究动机</h3>
+<p>传感器记录与context更新往往具有不同的频率。模型训练时能够获得同日context，实际使用时却可能面对较旧的背景信息。我们据此提出两个假设：随着context延迟增加，压力分类AUC会下降；相比从头监督训练，CLSP的AUC下降幅度更小。该实验考察输入时效性变化下的模型行为。</p>
 <figure><img loading="lazy" src="handin_report_assets/paper_figure4_context.png" alt="论文原图 Figure 4：作者对LifeSnaps表格特征的分析"><figcaption>论文原图 Figure 4：作者对LifeSnaps表格特征的分析</figcaption></figure>
-<p>图源：原论文Figure 4，PDF第8页。这张图说明作者分析了context特征，但作者的特征置零分析不等于我们的日历时间干预，也不能直接证明旧context的影响。图中结果属于作者。</p>
-<h3 id="section-8">具体怎样操作</h3>
-<p>先分别训练同日输入的监督模型与CLSP模型，选好checkpoint。随后固定模型参数，对同一批测试日期分别设置k=0、1、3、7日。</p>
-<p>对于待预测日期t，只从同一人的历史记录中找日期不晚于t−k的最近一条，把其中的动态context替换到当前日期。年龄、性别、BMI、人格字段在本实现中视为static，保留当前值；活动/场所、心率区间分钟数等动态字段被替换。传感器、标签、测试样本和模型权重都不变，预处理也不重新拟合。</p>
-<p>举一个示意例子：预测6月10日，k=3时截止日期为6月7日。如果这个人只有6月4日和6月9日的历史context，就使用6月4日，不能选6月9日，也不能选另一个人的6月7日。实际使用的信息可能比3天更旧，因此k是截止规则，不保证每条记录恰好旧k天。这也不是删除部分问卷、重新模拟完整收集日程。</p>
-<p>如果没有合格历史，用训练分区得到的逐坐标中位数作为预先规定的fallback，且只替换动态字段。当前真实实验全部fallback计数为0；合成测试专门检查历史不足时的行为。这不证明其他部署数据也不会需要fallback。</p>
-<h3 id="section-9">实际结果</h3>
+<p>图2来源：原论文Figure 4，PDF第8页。作者通过特征置零分析了LifeSnaps的context贡献。我们的实验进一步考察时间维度，以历史context替换当前值，研究信息更新延迟的影响。</p>
+<h3 id="section-8">实验设计</h3>
+<p>我们首先使用同日输入分别训练监督模型与CLSP，并通过验证集选择checkpoint。随后固定模型参数，在同一批测试日期上评估k=0、1、3、7日的context延迟。</p>
+<p>对于待预测日期t，我们从同一人的历史记录中选取日期不晚于t−k的最近一条，并用其动态context替换当前日期的对应字段。年龄、性别、BMI、人格字段在本实现中视为static，保留当前值；活动/场所、心率区间分钟数等动态字段被替换。传感器、标签、测试样本和模型权重都不变，预处理也不重新拟合。</p>
+<p>例如，在预测6月10日且k=3时，历史检索的截止日期为6月7日。若同一参与者仅在6月4日和6月9日有历史context，替换值来自6月4日。因此，k规定的是历史记录的时间上界，实际信息可能更旧。这个设计模拟了context滞后的输入条件，但没有完整模拟问卷重新采集的日程。</p>
+<p>缺少合格历史时，实验使用训练分区的逐坐标中位数作为预先规定的fallback，替换范围仍限于动态字段。当前真实实验的fallback计数均为0；历史不足的路径通过合成数据测试验证，因此现有性能结果并未衡量真实fallback触发时的表现。</p>
+<h3 id="section-9">实验结果</h3>
 <p>以下单位均为概率ROC-AUC%，±是三seed总体SD：</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>模型</th><th>同日k=0</th><th>k=1日</th><th>k=3日</th><th>k=7日</th></tr>
 <tr><td>Supervised</td><td>52.83 ± 3.51</td><td>56.31 ± 2.67</td><td>57.47 ± 2.48</td><td>50.00 ± 6.04</td></tr>
 <tr><td>Reference CLSP</td><td>50.03 ± 7.65</td><td>58.95 ± 8.08</td><td>51.99 ± 9.85</td><td>51.44 ± 10.18</td></tr>
 </tbody></table></div>
-<p>为了判断“谁更抗过期”，需要比较相对各自同日基线的变化：</p>
+<p>我们的主要比较量是两种模型相对各自同日基线的AUC下降差：</p>
 <pre><code>
 Drop(model, k) = AUC(model, 0) - AUC(model, k)
 Difference(k) = Drop(CLSP, k) - Drop(Supervised, k)
 </code></pre>
-<p>Drop为正表示变差，为负表示改善；Difference为负才倾向支持CLSP下降更少。但一个均值差不足以下结论，还需要不确定性区间。</p>
-<h3 id="section-10">为什么做配对participant bootstrap</h3>
+<p>Drop为正表示性能下降，为负表示改善；Difference为负对应CLSP的下降幅度较小。我们使用配对区间进一步评估这一差值的不确定性。</p>
+<h3 id="section-10">配对不确定性分析</h3>
 <p>同一个人的不同日期不是互相独立的。我们以参与者为单位有放回抽样，并保留每次抽中者的全部测试日期；两模型、两个延迟条件使用完全相同的抽样，计算下降差。每个seed请求2,000次抽样，再取2.5%和97.5%分位数。seed1有14次只有一个标签类别，无法计算AUC，排除并记录；另外两个seed各2,000次有效。</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>Seed</th><th>7日CLSP减监督的下降差（百分点）</th><th>配对bootstrap 95%区间（百分点）</th></tr>
@@ -101,52 +90,52 @@ Difference(k) = Drop(CLSP, k) - Drop(Supervised, k)
 <tr><td>2</td><td>+0.86</td><td>[-9.85, +13.17]</td></tr>
 </tbody></table></div>
 <p>k=1、3、7的下降差区间全部包含0。性能也没有稳定地随k增加而下降。因此当前结果既不支持“context越旧一定越差”，也不建立“CLSP更抗过期”的优势；不显著也不等于两方法等效。区间基于固定模型和固定split，不包含重新训练的不确定性，三个有重叠参与者的split没有被合并成独立人群。</p>
-<p><strong>视频可说：We tested deployment-time context staleness with fixed checkpoints, but did not establish a consistent robustness advantage for CLSP.</strong></p>
-<h2 id="section-11">6. 消融二：BERT的预训练知识到底带来什么</h2>
-<h3 id="section-12">为什么值得做</h3>
-<p>文字来自已有的传感器统计和context，本身没有增加新的测量。因此即使CLSP有效，也不能直接认定是语言知识带来的。可能只是多了另一种数据表示和对比学习约束。我们用机制对照检验这点。</p>
-<h3 id="section-13">具体怎样操作</h3>
+<p>这一实验将同日分类性能扩展到context时效性变化的条件下。结果表明，在当前样本规模和训练预算下，CLSP对旧context的稳定性优势尚未得到支持。</p>
+<h2 id="section-11">6. 文本分支机制消融</h2>
+<h3 id="section-12">研究动机</h3>
+<p>文字由已有的传感器统计量和context生成，没有引入独立测量。因此，文字对齐的潜在收益既可能来自预训练语言知识，也可能来自另一种数据表示及其对比约束。我们通过改变文字侧编码方式，检验预训练BERT在这一过程中是否提供了额外收益。</p>
+<h3 id="section-13">实验设计</h3>
 <div class="table-wrap"><table><tbody>
-<tr><th>文字侧变体</th><th>改变什么</th><th>如何保持比较尽量一致</th></tr>
+<tr><th>文字侧变体</th><th>表示方式</th><th>实验控制</th></tr>
 <tr><td>Pretrained frozen BERT</td><td>使用预训练语言模型表示</td><td>BERT冻结；学习后续投影和多模态模型</td></tr>
 <tr><td>Random frozen BERT</td><td>用同架构、同tokenizer，但全部权重随机初始化后冻结的BERT</td><td>相同文字、编码维度、样本和训练协议；不是随机生成embedding向量</td></tr>
 <tr><td>Statistics projection</td><td>不用BERT，直接输入55个sensor统计量＋22个context数值</td><td>仅训练子集拟合标准化；77维补零至768维以复用投影接口</td></tr>
 </tbody></table></div>
 <p>三种变体都使用reference对比目标。同一个seed下保持参与者划分、选中的256个预训练日、传感器/context分支及训练预算一致。每个变体重新执行预训练→probe→fine-tune；不像日历实验只重新评估固定模型。随机BERT编码器seed固定为20261125，单独缓存，避免误读预训练BERT缓存。</p>
-<h3 id="section-14">实际结果与可解释范围</h3>
+<h3 id="section-14">实验结果与解释</h3>
 <div class="table-wrap"><table><tbody>
 <tr><th>预训练文字侧</th><th>同日概率AUC%，三seed均值±SD</th></tr>
 <tr><td>预训练冻结 BERT</td><td>50.03 ± 7.65</td></tr>
 <tr><td>随机初始化冻结 BERT</td><td>52.50 ± 19.80</td></tr>
 <tr><td>统计量直接投影</td><td>45.13 ± 8.82</td></tr>
 </tbody></table></div>
-<p>预训练BERT没有稳定胜过随机冻结BERT，随机变体的波动尤其大，因此没有建立可靠的预训练语言知识优势。统计投影均值较低，但它同时改变了类别表达和标准化，不能把差异全解释为“去掉语义”。也不能据此宣称BERT毫无作用；这里只覆盖小数据、固定预算、三个split/seed和当前适配实现。</p>
-<p>文本机制矩阵是3种变体×3seed，其中3个pretrained/reference结果与目标函数实验共用，实际只新增6次训练，不能重复计算为新的9次。</p>
-<p><strong>视频可说：Pretrained BERT did not show a stable advantage over a random frozen encoder in this small pilot; the statistical control also changes representation and scaling.</strong></p>
-<h2 id="section-15">7. 诊断分析：模型是在区分人，还是在跟踪同一个人的变化</h2>
-<h3 id="section-16">为什么值得做</h3>
+<p>预训练BERT没有稳定胜过随机冻结BERT，随机变体的波动尤其大，因此没有建立可靠的预训练语言知识优势。统计投影的均值较低，但该控制同时改变了类别表达和标准化，差异难以单独归因于语言语义。实验覆盖的小数据规模、固定预算和三个split/seed也限制了结论的普遍性，现有证据尚不足以否定BERT在其他条件下的作用。</p>
+<p>文本机制矩阵包含3种变体×3seed，其中3个pretrained/reference运行与目标函数实验共用，另新增6次训练。</p>
+<p>该结果使我们对文字分支的解释保持有限范围：当前实验没有分离出可靠的预训练语言知识收益，而统计投影与文字编码之间的表示差异也限制了语义层面的因果解释。</p>
+<h2 id="section-15">7. 同人和跨人AUC分解</h2>
+<h3 id="section-16">研究动机</h3>
 <p>总体AUC基于高压力和低压力样本的分数排序。比较可以发生在不同人之间，也可以发生在同一个人的不同日期之间。一个模型即使主要学到了“哪些人通常分数较高”，总体AUC也可能不错，但这还不足以说明它能识别某个人压力升高的那一天。</p>
 <figure><img loading="lazy" src="handin_report_assets/paper_figure8_label_distribution.png" alt="论文原图 Figure 8：作者报告的人口学分组与压力标签分布"><figcaption>论文原图 Figure 8：作者报告的人口学分组与压力标签分布</figcaption></figure>
-<p>图源：原论文Figure 8，PDF第9页。这是作者的人口学分布分析，提示我们关注个体差异；它不是我们AUC分解的结果，也不能当作因果偏差证据。我们自己的分析如下。</p>
-<h3 id="section-17">具体怎样计算</h3>
-<p>对每个正负样本配对，正例预测分数更高计1，同分计0.5，否则计0。然后按照是否来自同一参与者分成within和between两组。分别计算各组AUC，并按配对数量加权，必须重构出总体AUC：</p>
+<p>图3来源：原论文Figure 8，PDF第9页。作者展示的人口学分组与标签分布差异为关注个体间差异提供了背景；我们的AUC分解进一步考察总体排序指标中同人和跨人比较的构成。</p>
+<h3 id="section-17">分解方法</h3>
+<p>我们对每个正负样本配对计分：正例预测分数更高计1，同分计0.5，否则计0。根据是否来自同一参与者，将配对分为within和between两组。两组AUC按配对数量加权后重构总体AUC：</p>
 <pre><code>
 Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
               / (Nwithin + Nbetween)
 </code></pre>
-<p>这不是简单平均每个人的AUC；没有合格正负配对的组应为未定义，不能当0。代码与手算例子、sklearn AUC进行核对。模型不重训、预测不修改，因此严格说这是诊断分析，不是模型消融；bootstrap同样是统计方法，不是另一个训练变体。</p>
-<h3 id="section-18">实际结果</h3>
+<p>该分解按配对数加权，而非对每个人的AUC做简单平均。没有合格正负配对的组被记为未定义。计算结果通过手算例子和sklearn AUC核对。整个分析保持模型与预测不变，属于评价指标的诊断分析；bootstrap则用于量化不确定性，二者均不构成新的训练变体。</p>
+<h3 id="section-18">实验结果</h3>
 <div class="table-wrap"><table><tbody>
 <tr><th>Seed</th><th>同人正负配对数</th><th>跨人正负配对数</th><th>跨人配对占比</th></tr>
 <tr><td>0</td><td>22</td><td>290</td><td>92.95%</td></tr>
 <tr><td>1</td><td>22</td><td>363</td><td>94.29%</td></tr>
 <tr><td>2</td><td>25</td><td>325</td><td>92.86%</td></tr>
 </tbody></table></div>
-<p>这些比例由测试标签和参与者构成决定，不是模型“依赖身份”的直接测量。它们说明总体指标中约93–94%的比较权重来自不同人。同日reference CLSP的同人AUC三个seed分别约54.55%、54.55%、40.00%，而每个seed只有22–25对，不能把这个估计说得很精确。</p>
-<p><strong>可得结论是：总体AUC不足以证明个体每日追踪能力；不能直接说模型已经被证明作弊、使用身份信息，或已证明存在因果歧视。</strong></p>
-<h2 id="section-19">8. 另外两组控制：模态与对比目标</h2>
+<p>这些比例由测试标签和参与者构成决定，不是模型“依赖身份”的直接测量。它们说明总体指标中约93–94%的比较权重来自不同人。同日reference CLSP的同人AUC三个seed分别约54.55%、54.55%、40.00%，但每个seed仅有22–25对同人配对，估计精度有限。</p>
+<p>总体AUC因此主要反映跨人排序，尚不足以支持可靠的个体每日追踪能力。这种指标构成的分析没有直接测量模型是否使用身份信息，也未建立人口学因素与模型行为之间的因果关系。</p>
+<h2 id="section-19">8. 输入模态与对比目标的补充控制</h2>
 <h3 id="section-20">MLP模态和观测偏移</h3>
-<p>这组实验使用现有PyHealth MLP，展示Dataset/Task在不同配置下能被实际训练。每seed保持参与者split和样本键一致，五个配置都重新训练20epochs；以validation BCE选择checkpoint，预处理只拟合训练样本。零掉被移除的模态，保留输入维度和参数数量。</p>
+<p>我们使用现有PyHealth MLP比较了不同输入模态和Task配置，以评估sensor与context在该基线中的作用。每seed保持参与者split和样本键一致，五个配置都重新训练20epochs；以validation BCE选择checkpoint，预处理只拟合训练样本。零掉被移除的模态，保留输入维度和参数数量。</p>
 <div class="table-wrap"><table><tbody>
 <tr><th>配置</th><th>概率AUC%，三seed均值±SD</th><th>实际改变</th></tr>
 <tr><td>Both</td><td>69.50 ± 3.57</td><td>sensor和context均保留</td></tr>
@@ -155,8 +144,8 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 <tr><td>Offset 1</td><td>69.33 ± 0.89</td><td>选择同一人前1条可用观测的context，重新训练</td></tr>
 <tr><td>Offset 7</td><td>70.79 ± 2.29</td><td>选择同一人前7条可用观测的context，重新训练</td></tr>
 </tbody></table></div>
-<p>共5配置×3seed＝15次训练。零输入分支可能仍有常量偏置，但不再提供该模态的样本差异信息。Both和sensor-only的均值接近，context-only波动较大；不能推广成context普遍无用。</p>
-<p><strong>Offset不是日历天，而且会重训。它不满足proposal主实验“按日期、固定权重”的定义；后补的日历实验才落实了该计划。</strong> MLP有自己的split、标准化、结构、预算和选择方式，不能用69.50−50.03声称MLP比CLSP更好。</p>
+<p>共5配置×3seed＝15次训练。零输入分支可能仍有常量偏置，但不再提供该模态的样本差异信息。Both和sensor-only的均值接近，context-only波动较大。这一结果说明context单独使用时对划分较敏感，尚不足以判断其在其他模型和数据条件下的作用。</p>
+<p>观测偏移实验按可用记录数选择历史context，并为每个配置重新训练。它考察训练任务的变化，与第5节固定权重的日历干预具有不同含义。后者对应proposal的主要时效性实验。MLP和CLSP在split、标准化、模型结构、预算与checkpoint选择上不同，因此这里的均值不构成两类模型的直接优劣比较。</p>
 <h3 id="section-21">对比目标控制</h3>
 <p>同seed固定BERT、数据、初始化和预算，分别重新训练三种目标。Reference和stop-gradient对相同输入可有相同loss数值，但梯度通常不同；one-hot则改变目标分布。</p>
 <div class="table-wrap"><table><tbody>
@@ -165,57 +154,26 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 <tr><td>Stop-gradient soft target，截断目标梯度</td><td>50.08 ± 12.98</td></tr>
 <tr><td>One-hot target，仅配对样本为正例</td><td>47.55 ± 9.17</td></tr>
 </tbody></table></div>
-<p>三种目标×3seed＝9次训练，未建立稳定优胜者。保留reference默认是为了对齐参考代码的目标梯度行为，不是因为它得到最高测试分。这是发现实现差异后增加的控制，不属于原proposal承诺的独立创新。</p>
+<p>三种目标×3seed共进行了9次训练，结果未显示稳定优胜者。Reference保留为默认模式的依据是其与参考代码目标梯度行为的一致性。该实验源于复现过程中发现的实现差异，是proposal之外增加的控制。</p>
 <p>总体CLSP矩阵为9次目标训练＋6次新增文本训练＝15次；每次执行也训练匹配监督模型，重复一致的监督结果汇总时只算一次。日历重复评估不增加模型训练数。最终性能CSV为6种不同方法×4延迟×3seed＝72行。</p>
-<h2 id="section-22">9. 有没有follow proposal：逐项对照</h2>
-<p>这里依据2026-10-25修订的CS598-DLC-project/course_proposal.tex，不是课程根目录较早版本；没有改写历史proposal来迁就结果。</p>
-<div class="table-wrap"><table><tbody>
-<tr><th>Proposal承诺</th><th>实际落实</th><th>判断与差异</th></tr>
-<tr><td>LifeSnaps Dataset＋Task、文档、合成测试、MLP feature ablation</td><td>相关类、YAML、exports、RST、测试与15次MLP实验</td><td>已完成</td></tr>
-<tr><td>k=0/1/3/7日历干预；同人日期≤t−k；固定sensor/static/labels/weights/test rows</td><td>calendar_context和固定checkpoint评估</td><td>已完成；区别于旧observation offset</td></tr>
-<tr><td>训练分区fallback及每delay计数</td><td>训练中位数fallback；真实计数均0，合成边界测试通过</td><td>已完成；真实实验未覆盖实际触发fallback的表现</td></tr>
-<tr><td>比较CLSP与监督AUC下降，participant-cluster paired bootstrap</td><td>每seed2,000抽样，记录单类排除与95%区间</td><td>已完成；假设未获稳定支持</td></tr>
-<tr><td>同人/跨人AUC分解</td><td>pair-weighted分解，72条件记录</td><td>已完成；属于诊断，不是因果证据</td></tr>
-<tr><td>预训练BERT、随机冻结encoder、统计直接投影</td><td>真实随机BERT与77维统计控制均实跑</td><td>已完成；统计控制不是纯语义干预</td></tr>
-<tr><td>PMData作为secondary reproduction check</td><td>独立流程两数据集共40次修正CLSP训练</td><td>已完成；不代表PMData已接入PyHealth</td></tr>
-<tr><td>时间允许时再做PyHealth Model/full pipeline</td><td>完整BaseModel与文本配对训练链路</td><td>已超出最初必选Dataset＋Task范围</td></tr>
-<tr><td>Dataset＋Task PR</td><td>代码与findings已在fork</td><td>正式上游PR尚未创建，提交工作未完成</td></tr>
-</tbody></table></div>
-<p>Proposal没有指定当前的256天/三seed小预算；这是后续明确记录的执行选择，限制结论强度。当前实验保留了计划的关键控制变量，但不应声称用全部可用预训练数据证明了论文结论。目标梯度修正及对照是额外工作。Proposal中的clean-room措辞也不应照搬为“从未看作者代码”；行为参考已经明确披露。</p>
-<p>因此准确表述是：<strong>proposal计划的本地实现、实验与分析已经执行；原先的科学假设没有被稳定验证；正式PR和课程视频/表单提交尚未全部完成。</strong></p>
-<h2 id="section-23">10. 正确性怎样验收</h2>
-<p>软件测试回答“实现是否按约定工作”，真实留出数据实验回答“模型效果怎样”。我们的测试使用临时合成CSV和小张量，不下载真实数据或BERT。</p>
-<div class="table-wrap"><table><tbody>
-<tr><th>测试方面</th><th>如何构造与核验</th></tr>
-<tr><td>Dataset/Task</td><td>四名虚拟参与者：完整天、不完整23h天、重复小时、缺失值、无标签日。期望3个监督样本、4个预训练日；检查标签、时间、5×24和22维输入及无泄漏</td></tr>
-<tr><td>Model</td><td>随机小权重和张量；检查forward/loss/shape/gradient、三个目标公式、probe冻结含BatchNorm、checkpoint恢复、Trainer一步训练</td></tr>
-<tr><td>训练辅助</td><td>检查参与者不跨split、测试数据不影响拟合、日历间隔与历史不足fallback、常量通道统计</td></tr>
-<tr><td>分析代码</td><td>可手算的AUC/ties例子，按人显式bootstrap与分析实现对照；检查单类抽样和配对加权重构</td></tr>
-<tr><td>共享基础设施</td><td>BaseDataset/cache回归，避免同步单worker路径破坏原流程</td></tr>
-</tbody></table></div>
-<p>最近保存的相关套件结果是47 passed、3 subtests passed，14.82秒，另有一条依赖更新提示；最慢call为0.26秒，setup为0.68秒。Dataset文件本次lint、format、命名和88字符行宽检查也通过。全量Sphinx构建和多worker执行尚未验证。上述检查不等于真实压力预测已经可靠。</p>
-<h2 id="section-24">11. 队友怎样把报告转成4–7分钟视频</h2>
-<p>建议围绕一条主线讲述：“为什么需要预训练 → 论文如何做 → 我们实现并修正了什么 → 数值是否支持 → 用消融追问机制和适用条件”。不需要逐行讲代码或把全部表格塞进视频。</p>
-<div class="table-wrap"><table><tbody>
-<tr><th>页</th><th>核心内容</th><th>建议用图/表</th><th>时间预算</th></tr>
-<tr><td>1</td><td>压力标签少，输入有时序和context；项目目标</td><td>一个人一天的输入/标签示意</td><td>40秒</td></tr>
-<tr><td>2</td><td>论文两视图对齐、probe和fine-tune</td><td>论文Figure 1，标明作者原图</td><td>65秒</td></tr>
-<tr><td>3</td><td>PyHealth Dataset→Task→Model及验证</td><td>本报告第3节流程和47＋3测试结果</td><td>50秒</td></tr>
-<tr><td>4</td><td>作者结果、本组独立复现、两协议区别</td><td>第2/4节表格，注明指标口径限制</td><td>65秒</td></tr>
-<tr><td>5</td><td>日历干预：动机、固定什么、如何比较下降</td><td>第5节均值表＋区间结论</td><td>65秒</td></tr>
-<tr><td>6</td><td>文本机制、同人/跨人诊断；补充MLP/目标控制</td><td>第6/7/8节，选关键数字</td><td>65秒</td></tr>
-<tr><td>7</td><td>proposal已执行、负结果与局限、交付状态</td><td>第9节结论</td><td>30秒</td></tr>
-</tbody></table></div>
-<p>总预算380秒＝6分20秒，实际需要排练；不要把所有备查细节都朗读。Figure 4与Figure 8可作为辅助解释或备份页，不能挤掉本组实测结果。所有得分内容应在7分钟前完成。</p>
-<p>可作为结尾的英文表述：We implemented and tested the complete PyHealth workflow and executed the planned context and text controls. Under our limited participant-held-out protocol, we did not establish a consistent pretraining or stale-context robustness advantage. Our AUC decomposition also shows why global discrimination alone is insufficient evidence of within-person daily tracking.</p>
-<p>避免说“复现失败所以项目没做完”，也避免说“全部复现成功且证明BERT无用”。报告应把实现完成、科学证据和提交状态分别讲清。</p>
-<h2 id="section-25">12. 代码、结果与报告怎样交付</h2>
-<p>代码贡献分支是 <strong>lifesnaps-stress-detection</strong>，代码/README提交为29c5287。报告放在独立 <strong>cs598-project-report</strong> 分支，不把报告分支合入代码分支；将来创建上游PR时选择代码分支。课程要求提交PR、slides＋公开视频、每人GenAI form，没有单独final report要求。</p>
-<p>消融代码、运行参数、实测findings和无身份信息的汇总CSV属于PyHealth贡献，应保留在代码PR。课程综合报告、AI个人日志和视频材料属于课堂协作资料。原始数据、逐人预测、BERT缓存和checkpoint不上传。</p>
-<p>用户要求移除的handin_proposal_results.html、handin_video_script.html、handin_video_slides.pdf在核验时均不在fork的master或代码贡献分支中；本报告分支也不加入这三个旧文件。</p>
-<p>将来创建PR：先确认最新上游变化及冲突、完成必要复查，再选择base repository sunlabuiuc/PyHealth、当前默认分支（本轮查看为master）；head fork qichang-liu/PyHealth、compare lifesnaps-stress-detection。描述写明两位作者、论文、贡献类型、文件地图、测试、实验和局限，按上游模板填写并处理CI/审查。同步最新上游后的实际diff需要重新检查，不能直接把旧35文件计数当作最新基准。当前未创建PR。</p>
-<p><a href="https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/creating-a-pull-request-from-a-fork">GitHub fork PR操作说明</a> · <a href="https://pyhealth.readthedocs.io/en/latest/how_to_contribute.html">PyHealth贡献指南</a></p>
-<h2 id="section-26">证据与图源</h2>
+<h2 id="section-22">9. Proposal落实与研究范围</h2>
+<p>研究以2026年10月25日修订的proposal为起点。原计划的必选贡献是LifeSnaps Dataset与Task，包括文档、合成测试和MLP特征消融；模型集成原本列为时间允许时的扩展。最终实现覆盖了这些内容，并进一步完成了PyHealth BaseModel与真实文字配对的预训练、probe、fine-tune全流程。</p>
+<p>实验部分保留了proposal的主要设计。日历context实验使用k=0、1、3、7，同一参与者日期不晚于t−k的历史记录替换动态字段，同时固定sensor、static context、标签、模型权重和测试日期。训练分区fallback及其计数、participant-cluster paired bootstrap、同人/跨人AUC分解，以及预训练BERT、随机冻结BERT和统计投影三个文字侧对照均已执行。PMData作为独立复现的第二个数据集，而没有扩展为第二个PyHealth Dataset。</p>
+<p>执行方案也引入了明确的范围限制。256个预训练日和三个seed是后续确定的小预算方案，proposal未预先指定这两个数值；因此现有实验检验了计划中的机制和控制关系，但结论限于该预算。目标梯度修正及其消融属于额外工作。作者实现曾作为行为参考，这一点也澄清了proposal中较强的clean-room表述。</p>
+<p>原计划的本地实现、实验和分析已经完成，但关于预训练收益和context延迟鲁棒性的假设未得到稳定支持。代码和结果已发布到个人fork，正式上游PR尚未创建。</p>
+<h2 id="section-23">10. 实现验证</h2>
+<p>我们通过合成数据测试检查数据处理、模型计算和分析方法的实现行为。Dataset/Task测试构造了四名虚拟参与者，包含完整天、23小时不完整天、重复小时、缺失值和无标签日。测试在真实CSV读取与事件转换路径上核验了3个监督样本、4个预训练日，以及标签、时间、输入形状和特征排除规则。</p>
+<p>模型测试使用小型随机张量检查forward、loss、输出形状和梯度，验证三种对比目标的公式与梯度、probe阶段的参数和BatchNorm冻结，以及checkpoint恢复和Trainer单步训练。辅助测试检查参与者划分、训练集预处理、日期间隔、fallback和常量通道统计；分析测试将AUC分解与手算结果比较，将bootstrap实现与显式参与者重采样比较。共享数据加载和缓存路径也包含回归检查。</p>
+<p>最近的相关测试套件记录为47项测试和3个子测试通过，总耗时14.82秒，另有一条依赖更新提示。最慢单项call为0.26秒，setup为0.68秒；Dataset的lint、format、命名和行宽检查也通过。全量Sphinx构建和多worker执行尚未验证。这些结果支持实现的预期行为，模型的预测效果则由前述真实数据实验评价。</p>
+<h2 id="section-24">11. 讨论与结论</h2>
+<p>这项工作的主要产出是一个可运行、经过测试的PyHealth多模态压力检测流程，以及一组围绕机制和使用条件展开的实测分析。独立复现中的CLSP没有稳定超过监督基线；受试者留出的PyHealth实验也呈现较大的跨seed波动。因此，数值上的接近或一次配置的领先，都不足以建立普遍的预训练收益。</p>
+<p>三个核心分析进一步限定了结果的含义。日历干预没有观察到稳定的单调性能下降，也未显示CLSP更抗旧context；文本对照没有建立预训练BERT相对随机冻结编码器的稳定优势；AUC分解显示总体指标的大部分配对来自不同参与者，对个人每日变化的证据仍然有限。这些发现没有否定原方法在其他预算、划分或实现下的潜力，而是界定了当前实验能够支持的结论。</p>
+<p>研究的限制主要来自小规模有标签测试集、有限预训练预算、三个同时改变split与初始化的seed，以及适配实现与参考流程之间的差异。Bootstrap区间反映固定模型和划分下的参与者抽样不确定性；统计投影控制还同时改变了表示方式与标准化。更大规模的受试者留出评估和更充分的训练预算仍有助于进一步检验这些机制。</p>
+<h2 id="section-25">12. Video pre 的逻辑</h2>
+<p>我们的项目从压力标签稀缺和多模态输入的学习问题出发。原论文用同一天数据的数值与文字视图进行对比预训练，为利用无标签记录提供了方法。我们将这一方法转化为PyHealth的Dataset、Task和Model，并在复现中发现、修正了目标梯度差异。</p>
+<p>主要结果随后将叙述从方法实现推进到证据检验：在两数据集的独立复现以及受试者留出的PyHealth实验中，CLSP都未建立稳定优势。日历context实验进一步检验实际输入更新延迟，文字机制实验追问BERT预训练知识的贡献，AUC分解则检查总体分数是否足以反映个人的每日变化。MLP模态和对比目标控制为这些分析提供了补充背景。</p>
+<p>最终结论是，我们完成了proposal中的实验设计和完整软件流程，同时明确了负结果及其适用范围。项目展示的核心是从论文主张出发，经由可复现实现和有控制的实验，形成对方法机制、鲁棒性和评价指标的更具体理解。</p>
+<h2 id="section-26">参考文献与实验材料</h2>
 <ul>
 <li><a href="https://proceedings.mlr.press/v287/yang25a.html">论文与PDF入口</a>：作者方法、Table 1和Figure 1/4/8。原图由作者创作；本报告的中文解释由本组整理，未把原图当作本组结果。</li>
 <li><a href="../examples/wearable/README.md">PyHealth README</a>：环境、真实/合成运行命令与实验入口。</li>
@@ -223,14 +181,4 @@ Overall AUC = (Nwithin × AUCwithin + Nbetween × AUCbetween)
 <li><a href="../examples/wearable/lifesnaps_stressdetection_findings.md">MLP完整设置与结果</a>、<a href="../examples/wearable/lifesnaps_objective_ablation.md">目标函数对照</a>。</li>
 <li><a href="handin_report_assets/figure_sources.json">图像裁取来源记录</a>：PDF页码、图号、裁取坐标、源文件SHA256。图片只是原图区域导出，没有改变实验数值。</li>
 </ul>
-<p>本报告借助Codex整理，数值与已保存的结果文件核对。个体预测和数据未放入报告；结果摘要不代替原始实验日志。独立repro源代码不在这份PyHealth贡献分支中，因此其结果与库内example的可复现入口分开说明。</p></main><script>
-const rows=[...document.querySelectorAll('tr')].filter(r=>r.querySelector('td'));
-const query=document.getElementById('row-search'),state=document.getElementById('row-state');
-function filterRows(){const q=query.value.trim().toLocaleLowerCase();let shown=0;
-for(const row of rows){const text=row.textContent.toLocaleLowerCase(),first=row.cells[0]?.textContent||'';
-const done=first.includes('✅'),open=/[◐⬜⛔?？]/.test(first)||/待|未|缺|部分|阻/.test(first);
-const match=(!q||text.includes(q))&&(state.value==='all'||(state.value==='done'?done:open));row.hidden=!match;if(match)shown++;}
-document.getElementById('row-count').textContent=`显示 ${shown} / ${rows.length} 条表格记录`;}
-query.addEventListener('input',filterRows);state.addEventListener('change',filterRows);
-document.getElementById('reset-filter').onclick=()=>{query.value='';state.value='all';filterRows()};filterRows();
-</script></body></html>
+<p>本报告借助Codex整理，实验数值依据保存的结果文件核对。独立repro与PyHealth example分别保存实验记录；上列代码与findings对应PyHealth贡献，论文原图保留作者归属。</p></main></body></html>
